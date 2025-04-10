@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.orm import relationship
 from app.database import Base
 import datetime
 
@@ -12,3 +13,4 @@ class Mission(Base):
     status = Column(String)
     start_time = Column(DateTime, default=datetime.datetime.utcnow)
     
+    crew_members = relationship("crew", back_populates="misison")
