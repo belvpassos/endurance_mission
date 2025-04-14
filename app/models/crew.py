@@ -8,6 +8,6 @@ class Crew(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     role = Column(String, nullable=False)
-    mission_id = Column(Integer, ForeignKey("missions.id"))  # Corrigido para "missions.id"
+    mission_id = Column(Integer, ForeignKey("missions.id"))
     
-    mission = relationship("Mission", back_populates="crew_members")  # Corrigido para "crew_members"
+    mission = relationship("Mission", back_populates="crew_members")
