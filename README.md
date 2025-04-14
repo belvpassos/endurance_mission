@@ -1,32 +1,37 @@
-# 🛰️ Interstellar Mission Control
+# 🛰️ Endurance Mission Control
 
-Um sistema de controle de missões espaciais altamente realista, inspirado no universo do filme Interstellar. Desenvolvido com foco em robustez, escalabilidade e dados científicos.
+A highly realistic space mission control system, inspired by the universe of the movie *Interstellar*. Designed with a strong focus on robustness, scalability, and scientific data.
 
-## 🚀 Tecnologias
+> ⚠️ **This API is still under development.** Features and structure may change as the project evolves.
 
-- Python + FastAPI
-- PostgreSQL
-- Tailwind CSS + JS/TS
-- Testes com Pytest e/ou Cypress
-- Docker (futuramente)
+## 🚀 Technologies
 
-## 🧩 Funcionalidades
+- Python + FastAPI  
+- PostgreSQL  
+- Tailwind CSS + JS/TS  
+- Testing with Pytest and/or Cypress  
+- Docker (coming soon)  
 
-- Cadastro e status de missões
-- Gerenciamento da tripulação
-- Telemetria (altitude, temperatura, combustível, etc.)
-- Análise de planetas
-- Dados do buraco negro Gargântua
+## 🧩 Features (Planned & In Progress)
 
-## 📦 Como rodar
+- Mission registration and status tracking  
+- Crew management  
+- Telemetry (altitude, temperature, fuel, etc.)  
+- Planet analysis  
+- Gargantua black hole data  
+
+## 📦 How to Run
 
 ```bash
-git clone https://github.com/seuusuario/interstellar-mission-control.git
+git clone https://github.com/yourusername/interstellar-mission-control.git
 cd interstellar-mission-control
 python -m venv venv
-source venv/bin/activate  # ou .\venv\Scripts\activate no Windows
+source venv/bin/activate  # or .\venv\Scripts\activate on Windows
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
 
-🧪 Testes
+### 🧪 Running Tests
+
+```bash
 pytest
