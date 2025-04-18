@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routes import missions, crew, planet
+from app.routes import missions, crew, planet, telemetryData
 from app.database import Base, engine
 
 
@@ -11,3 +11,4 @@ app = FastAPI(title="Endurance Mission Control")
 app.include_router(missions.router)
 app.include_router(crew.router)
 app.include_router(planet.router)
+app.include_router(telemetryData.router)

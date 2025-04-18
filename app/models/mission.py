@@ -3,7 +3,6 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 import datetime
 
-
 class Mission(Base):
     __tablename__ = "missions"
     
@@ -13,3 +12,7 @@ class Mission(Base):
     start_time = Column(DateTime, default=datetime.datetime.utcnow)
     
     crew_members = relationship("Crew", back_populates="mission", cascade="all, delete")
+    telemetry_data = relationship("Telemetry", back_populates="mission")
+    
+    # Usando o nome da classe como string para evitar problemas de importação
+   # spacecraft_status = relationship("SpacecraftStatus", back_populates="mission")
