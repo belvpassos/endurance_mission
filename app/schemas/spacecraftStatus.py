@@ -8,14 +8,14 @@ class SpacecraftStatusBase(BaseModel):
     temperature: float
     pressure: float
     is_operational: bool
-    life_suport_active: bool
+    life_support_active: bool
     communication_active: bool
     mission_id: int
 
 class SpacecraftStatusCreate(SpacecraftStatusBase):
     pass
 
-class SpacecraftStatusRespons(SpacecraftStatusBase):
+class SpacecraftStatusResponse(SpacecraftStatusBase):
     id: int
 
     class Config:

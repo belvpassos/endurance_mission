@@ -14,5 +14,4 @@ class Mission(Base):
     crew_members = relationship("Crew", back_populates="mission", cascade="all, delete")
     telemetry_data = relationship("Telemetry", back_populates="mission")
     
-    # Usando o nome da classe como string para evitar problemas de importação
-   # spacecraft_status = relationship("SpacecraftStatus", back_populates="mission")
+    spacecraft_status = relationship("SpacecraftStatus", back_populates="mission", cascade="all, delete-orphan")
