@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, Float, Integer, String, ForeignKey
+from sqlalchemy import Column, Float, Integer, String, ForeignKey, Enum
 from app.database import Base
 
 class CoolingSystemStatus(enum.Enum):
@@ -13,6 +13,6 @@ class ThermalControlSystem(Base):
     id = Column(Integer, primary_key=True, index=True)
     internal_temperature = Column(Float)
     external_temperature = Column(Float)
-    cooling_system_status = Column(enum(CoolingSystemStatus), nullable=False)
+    cooling_system_status = Column(Enum(CoolingSystemStatus), nullable=False)
     
     spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"))
