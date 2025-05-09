@@ -103,7 +103,7 @@ The goal is to demonstrate high-level backend architecture, critical system mode
 ## 📩 Contact
 
 * GitHub: [@MariaIzabelVieiraPassos](https://github.com/belvpassos)
-* Email: ([you@example.com](mailto:mariaizabel09@outlook.com))
+* Email: ([mariaizabel09@outlook.com](mailto:mariaizabel09@outlook.com))
 
 ---
 
