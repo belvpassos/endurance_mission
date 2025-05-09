@@ -16,4 +16,9 @@ class DockingSystem(Base):
     
     target_module = Column(String)
     status = Column(Enum(DockingStatus), default=DockingStatus.UNDOCKED)
-   
+    initiated_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    success = Column(Boolean, default=False)
+    error_message = Column(String, nullable=True)
+    
+    spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"))
