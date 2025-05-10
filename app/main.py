@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routes import missions, crew, planet, telemetryData, spacecraftStatus
+from app.routes import missions, crew, planet, telemetryData, spacecraftStatus, abortRecoverySystem
 from app.database import Base, engine
 
 
@@ -13,3 +13,4 @@ app.include_router(crew.router)
 app.include_router(planet.router)
 app.include_router(telemetryData.router)
 app.include_router(spacecraftStatus.router)
+app.include_router(abortRecoverySystem.router)

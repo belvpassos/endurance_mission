@@ -8,7 +8,7 @@ class AbortRecoverySystem(Base):
     id = Column(Integer, primary_key=True, index=True)
     status = Column(String, default="standby")
     abort_reason = Column(String, nullable=True)
-    Column(DateTime, default=datetime.utcnow, nullable=True)
+    triggered_at = Column(DateTime, default=datetime.utcnow, nullable=True)
     recovery_procedure = Column(String, nullable=True)
     success = Column(Boolean, default=False)
     
