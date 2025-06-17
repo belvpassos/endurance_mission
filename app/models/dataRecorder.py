@@ -12,4 +12,4 @@ class DataRecorder(Base):
     data_value = Column(String)
     source_system = Column(String)
     
-    spacecraft_id = Column(Integer, ForeignKey("spacecraft_id"))
+    spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"))
