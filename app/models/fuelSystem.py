@@ -6,7 +6,7 @@ class Fuel(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     fuel_level = Column(Float)
-    fuel_consupmtion_level = Column(Float)
+    fuel_consumption_level = Column(Float)
     fuel_temperature = Column(Float)
     
     spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"))
