@@ -22,6 +22,3 @@ def read_entry(entry_id: int, db: Session = Depends(get_db)):
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
     return entry
-
-@router.get("/", response_model=list[schemas.LifeSupportSystem])
-    
