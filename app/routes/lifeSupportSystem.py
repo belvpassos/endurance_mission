@@ -18,7 +18,37 @@ def create_entry(entry: schemas.LifeSupportSystemCreate, db: Session = Depends(g
 
 @router.get("/{entry_id}", response_model=schemas.LifeSupportSystem)
 def read_entry(entry_id: int, db: Session = Depends(get_db)):
-    entry = db.query(models.LifeSupportSystem).filter(models.lifeSupportSystem.id == entry_id).first()
+    entry = db.query(models.LifeSupportSystem).filter(models.LifeSupportSystem.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
     return entry
+
+
+@router.get("/", response_model=list[schemas.LifeSupportSystem])
+def read_all_entries(db: Session = Depends(get_db)):
+    return db.query(models.LifeSupportSystem).all()
+
+
+@router.put("/{entry_id}", response_model=schemas.LifeSupportSystem)
+def update_entry(entry_id: int, updated: schemas.LifeSupportSystemUpdate, db: Session = Depends(get_db)):
+    entry = db.query(models.LifeSupportSystem).filter(models.LifeSupportSystem.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    
+    for key, value in updated.dict(exclude_unset=True).items():
+        setattr(entry, key, value)
+    
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.delete("/{entry_id}")
+def delete_entry(entry_id: int, db: Session = Depends(get_db)):
+    entry = db.query(models.LifeSupportSystem).filter(models.LifeSupportSystem.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    
+    db.delete(entry)
+    db.commit()
+    return {"detail": "Entry deleted successfully"}
