@@ -8,7 +8,8 @@ class PayloadSystemStatus(str, Enum):
     STANDBY = "standby"
     DEPLOYED = "deployed"
     FAILED = "failed"
-    DECOMMISSIONED = "decommisioned"
+    DECOMMISSIONED = "decommissioned"
+    
     
 
 class PayloadSystemBase(BaseModel):
@@ -31,11 +32,11 @@ class PayloadSystem(PayloadSystemBase):
         from_attributes = True
         
 class PayloadSystemUpdate(BaseModel):
-    name: Optional [str] = None
-    type: Optional [str] = None
-    status: Optional [PayloadSystemStatus] = None
-    mass: Optional [float] = None
-    power_requirement: Optional [float] = None
-    data_rate: Optional [float] = None
-    deployment_time: Optional [datetime] = None
+    name: Optional[str] = None
+    type: Optional[str] = None
+    status: Optional[PayloadSystemStatus] = None
+    mass: Optional[float] = None
+    power_requirement: Optional[float] = None
+    data_rate: Optional[float] = None
+    deployment_time: Optional[datetime] = None
     
