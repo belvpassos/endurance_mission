@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app import models
+from app.models import payloadSystem as models
 from app.schemas import payloadSystem as schemas
 
 router = APIRouter(prefix="/payload-system", tags=["Payload System"])
@@ -26,12 +26,12 @@ def read_payload(entry_id: int, db: Session = Depends(get_db)):
 def read_all_payload(db: Session = Depends(get_db)):
     return db.query(models.PayloadSystem).all()
 
-@router.put("/{entry_id}", response_model=schemas.payloadSystem)
+@router.put("/{entry_id}", response_model=schemas.PayloadSystem)
 def update_payload(entry_id: int, updated: schemas.PayloadSystemUpdate, db: Session = Depends(get_db)):
     entry = db.query(models.PayloadSystem).filter(models.PayloadSystem.id == entry_id).first()
     if entry is None:
         raise HTTPException(status_code=404, detail= "Payload entry not found")
-    for key, value in updated.dict(exclude_unset=True).item():
+    for key, value in updated.dict(exclude_unset=True).items():
         setattr(entry, key, value)
         
     db.commit()
