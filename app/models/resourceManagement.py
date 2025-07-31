@@ -2,8 +2,8 @@ from sqlalchemy import Column, Float, DateTime, Integer, ForeignKey, Boolean
 from app.database import Base
 from datetime import datetime
 
-class ResourceManager(Base):
-    __tablename__ = "resource_manager"
+class ResourceManagement(Base):
+    __tablename__ = "resource_management"
     
     id = Column(Integer, primary_key=True, index=True)
     
@@ -23,6 +23,6 @@ class ResourceManager(Base):
     oxygen_critical = Column(Boolean, default=False)
     food_critical = Column(Boolean, default=False)
     
-    last_uupdate = Column(DateTime, default=datetime.utcnow)
+    last_update = Column(DateTime, default=datetime.utcnow)
     
     spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"))
