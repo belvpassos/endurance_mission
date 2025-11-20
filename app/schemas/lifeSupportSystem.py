@@ -8,12 +8,22 @@ class LifeSupportSystemBase(BaseModel):
     pressure: float
     temperature: float
     spacecraft_id: int
-    
+
 class LifeSupportSystemCreate(LifeSupportSystemBase):
     pass
 
+class LifeSupportSystemUpdate(BaseModel):
+    oxygen_level: Optional[float] = None
+    co2_level: Optional[float] = None
+    humidity: Optional[float] = None
+    pressure: Optional[float] = None
+    temperature: Optional[float] = None
+    is_operational: Optional[bool] = None
+    spacecraft_id: Optional[int] = None
+
 class LifeSupportSystemOut(LifeSupportSystemBase):
     id: int
-    
+    is_operational: bool
+
     class Config:
-        from_attribute = True
+        orm_mode = True

@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
 
 class GroundControlLogBase(BaseModel):
@@ -9,13 +8,13 @@ class GroundControlLogBase(BaseModel):
     content: str
     acknowledged: bool
     spacecraft_id: int
-    
+
 class GroundControlLogCreate(GroundControlLogBase):
     pass
 
 class GroundControlLogOut(GroundControlLogBase):
     id: int
     timestamp: datetime
-    
+
     class Config:
-        from_attributes = True
+        orm_mode = True

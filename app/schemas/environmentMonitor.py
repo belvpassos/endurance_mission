@@ -2,26 +2,25 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
-class EnvironmentMonitorBase(BaseException):
-    internal_pressure: Optional[float]
-    external_pressure: Optional[float]
-    co2_level: Optional[float]
-    o2_level: Optional[float]
-    radiation_level: Optional[float]
-    magnetic_field_strength: Optional[float]
+class EnvironmentMonitorBase(BaseModel):
+    internal_pressure: Optional[float] = None
+    external_pressure: Optional[float] = None
+    co2_level: Optional[float] = None
+    o2_level: Optional[float] = None
+    radiation_level: Optional[float] = None
+    magnetic_field_strength: Optional[float] = None
     timestamp: Optional[datetime] = None
-    
-class EnvironmentoMonitorCreate(EnvironmentMonitorBase):
-    pass
+
+class EnvironmentMonitorCreate(EnvironmentMonitorBase):
+    spacecraft_id: int
 
 class EnvironmentMonitorUpdate(EnvironmentMonitorBase):
-    pass
+    spacecraft_id: Optional[int] = None
 
 class EnvironmentMonitorInDB(EnvironmentMonitorBase):
     id: int
-    spacecraft_id: int 
-    timestamp: datetime
-    
+    spacecraft_id: int
+    timestamp: Optional[datetime] = None
+
     class Config:
-        from_attributes = True
-    
+        orm_mode = True

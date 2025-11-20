@@ -7,7 +7,7 @@ class AlertType(str, Enum):
     CRITICAL = "critical"
     WARNING = "warning"
     INFO = "info"
-    
+
 class AlertBase(BaseModel):
     system: str
     alert_type: AlertType
@@ -16,7 +16,7 @@ class AlertBase(BaseModel):
     resolved: Optional[bool] = False
     resolved_at: Optional[datetime] = None
     spacecraft_id: int
-    
+
 class AlertCreate(AlertBase):
     pass
 
@@ -28,11 +28,10 @@ class AlertUpdate(BaseModel):
     resolved: Optional[bool]
     resolved_at: Optional[datetime]
     spacecraft_id: Optional[int]
-    
+
 class Alert(AlertBase):
     id: int
     timestamp: datetime
-    
+
     class Config:
         orm_mode = True
-    

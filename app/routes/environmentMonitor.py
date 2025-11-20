@@ -14,11 +14,15 @@ router = APIRouter(prefix="/environment", tags=["Environment Monitor"])
 def create_environment_data(
     data: EnvironmentMonitorCreate, db: Session = Depends(get_db)
 ):
-    env = EnvironmentMonitor(**data.dict())
-    db.add(env)
-    db.commit()
-    db.refresh(env)
-    return env
+    try:
+        env = EnvironmentMonitor(**data.dict())
+        db.add(env)
+        db.commit()
+        db.refresh(env)
+        return env
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating environment data: {e}")
 
 @router.get("/{env_id}", response_model=EnvironmentMonitorInDB)
 def read_environment_data(env_id: int, db: Session = Depends(get_db)):
@@ -37,18 +41,25 @@ def update_environment_data(
     if not env:
         raise HTTPException(status_code=404, detail="Environment data not found")
 
-    for field, value in data.dict(exclude_unset=True).items():
-        setattr(env, field, value)
-
-    db.commit()
-    db.refresh(env)
-    return env
+    try:
+        for field, value in data.dict(exclude_unset=True).items():
+            setattr(env, field, value)
+        db.commit()
+        db.refresh(env)
+        return env
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating environment data: {e}")
 
 @router.delete("/{env_id}")
 def delete_environment_data(env_id: int, db: Session = Depends(get_db)):
     env = db.query(EnvironmentMonitor).filter(EnvironmentMonitor.id == env_id).first()
     if not env:
         raise HTTPException(status_code=404, detail="Environment data not found")
-    db.delete(env)
-    db.commit()
-    return {"detail": "Deleted successfully"}
+    try:
+        db.delete(env)
+        db.commit()
+        return {"detail": "Deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting environment data: {e}")

@@ -3,12 +3,12 @@ from typing import Optional
 from datetime import datetime
 
 class ResourceManagementBase(BaseModel):
-    power_avaliable: float
+    power_available: float
     fuel_remaining: float
     water_reserve: float
     oxygen_level: float
     co2_level: float
-    food_suplies: float
+    food_supplies: float
     average_consumption_rate: float
     projected_depletion_date: datetime
     power_critical: bool
@@ -16,18 +16,18 @@ class ResourceManagementBase(BaseModel):
     water_critical: bool
     oxygen_critical: bool
     food_critical: bool
-    last_update: datetime
+    last_update: Optional[datetime] = None
 
 class ResourceManagementCreate(ResourceManagementBase):
     spacecraft_id: int
 
-class ResourceManagementUpdate(ResourceManagementBase):
-    power_avaliable: Optional[float] = None
+class ResourceManagementUpdate(BaseModel):
+    power_available: Optional[float] = None
     fuel_remaining: Optional[float] = None
     water_reserve: Optional[float] = None
     oxygen_level: Optional[float] = None
     co2_level: Optional[float] = None
-    food_suplies: Optional[float] = None
+    food_supplies: Optional[float] = None
     average_consumption_rate: Optional[float] = None
     projected_depletion_date: Optional[datetime] = None
     power_critical: Optional[bool] = None
@@ -39,7 +39,7 @@ class ResourceManagementUpdate(ResourceManagementBase):
 
 class ResourceManagement(ResourceManagementBase):
     id: int
-    spacecraft_id:int
-    
+    spacecraft_id: int
+
     class Config:
-        from_attributes: True
+        from_attributes = True

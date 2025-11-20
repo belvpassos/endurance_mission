@@ -1,57 +1,66 @@
-from fastapi import APIRouter, Depends, HTTPException
+# app/routes/spacecraftStatus.py
+
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
-from app.models.spacecraftStatus import SpacecraftStatus as SpacecraftStatusModel
-from app.schemas.spacecraftStatus import SpacecraftStatusCreate, SpacecraftStatusResponse
+from app.database import get_db
+from app.models.spacecraftStatus import SpacecraftStatus as Model
+from app.schemas import spacecraftStatus as schemas
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/spacecraft-status",
+    tags=["Spacecraft Status"]
+)
 
-def get_db():
-    db = SessionLocal()
+@router.post("/", response_model=schemas.SpacecraftStatusResponse)
+def create_status(entry: schemas.SpacecraftStatusCreate, db: Session = Depends(get_db)):
+    new_entry = Model(**entry.dict())
+    db.add(new_entry)
     try:
-        yield db
-    finally:
-        db.close()
+        db.commit()
+        db.refresh(new_entry)
+        return new_entry
+    except Exception:
+        db.rollback()
+        raise
 
-@router.post("/spacecraft_status/", response_model=SpacecraftStatusResponse)
-def create_spacecraft_status(status: SpacecraftStatusCreate, db: Session = Depends(get_db)):
-    db_status = SpacecraftStatusModel(**status.dict())
-    db.add(db_status)
-    db.commit()
-    db.refresh(db_status)
-    return db_status
+@router.get("/", response_model=list[schemas.SpacecraftStatusResponse])
+def read_all_status(db: Session = Depends(get_db)):
+    return db.query(Model).all()
 
-@router.get("/spacecraft_status/", response_model=list[SpacecraftStatusResponse])
-def read_spacecraft_status(db: Session = Depends(get_db)):
-    return db.query(SpacecraftStatusModel).all()
-
-@router.get("/spacecraft_status/{status_id}", response_model=SpacecraftStatusResponse)
-def read_spacecraft_status_by_id(status_id: int, db: Session = Depends(get_db)):
-    status = db.query(SpacecraftStatusModel).filter(SpacecraftStatusModel.id == status_id).first()
-    if status is None:
-        raise HTTPException(status_code=404, detail="Status can't be found")
-    return status
-
-@router.put("/spacecraft_status/{status_id}", response_model=SpacecraftStatusResponse)
-def update_spacecraft_status(status_id: int, updated_status: SpacecraftStatusCreate, db: Session = Depends(get_db)):
-    status = db.query(SpacecraftStatusModel).filter(SpacecraftStatusModel.id == status_id).first()
-    if status is None:
+@router.get("/{entry_id}", response_model=schemas.SpacecraftStatusResponse)
+def read_status(entry_id: int, db: Session = Depends(get_db)):
+    entry = db.query(Model).filter(Model.id == entry_id).first()
+    if entry is None:
         raise HTTPException(status_code=404, detail="Status not found")
-    
-    for key, value in updated_status.dict(exclude_unset=True).items():
-        setattr(status, key, value)
+    return entry
 
-    db.commit()
-    db.refresh(status)
-    return status
-
-@router.delete("/spacecraft_status/{status_id}")
-def delete_spacecraft_status(status_id: int, db: Session = Depends(get_db)):
-    status = db.query(SpacecraftStatusModel).filter(SpacecraftStatusModel.id == status_id).first()
-    if status is None:
+@router.put("/{entry_id}", response_model=schemas.SpacecraftStatusResponse)
+def update_status(entry_id: int, updated: schemas.SpacecraftStatusUpdate, db: Session = Depends(get_db)):
+    entry = db.query(Model).filter(Model.id == entry_id).first()
+    if entry is None:
         raise HTTPException(status_code=404, detail="Status not found")
-    
-    db.delete(status)
-    db.commit()
-    return{"detail": "Spacecraft status deleted successfully"}
-    
+
+    for key, value in updated.dict(exclude_unset=True).items():
+        setattr(entry, key, value)
+
+    try:
+        db.commit()
+        db.refresh(entry)
+        return entry
+    except Exception:
+        db.rollback()
+        raise
+
+@router.delete("/{entry_id}")
+def delete_status(entry_id: int, db: Session = Depends(get_db)):
+    entry = db.query(Model).filter(Model.id == entry_id).first()
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Status not found")
+
+    db.delete(entry)
+    try:
+        db.commit()
+        return {"message": "Spacecraft status deleted successfully"}
+    except Exception:
+        db.rollback()
+        raise

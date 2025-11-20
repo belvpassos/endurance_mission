@@ -5,8 +5,8 @@ from datetime import datetime
 class CommandQueueBase(BaseModel):
     command: str
     parameters: Optional[str] = None
-    schedule_time: Optional[datetime] = None
-    executed: Optional [bool] = False
+    scheduled_time: Optional[datetime] = None
+    executed: Optional[bool] = False
     executed_time: Optional[datetime] = None
     priority: Optional[int] = 1
     status: Optional[str] = "scheduled"
@@ -18,19 +18,15 @@ class CommandQueueCreate(CommandQueueBase):
 class CommandQueueUpdate(BaseModel):
     command: Optional[str] = None
     parameters: Optional[str] = None
-    schedule_time: Optional[datetime] = None
+    scheduled_time: Optional[datetime] = None
     executed: Optional[bool] = None
     executed_time: Optional[datetime] = None
     priority: Optional[int] = None
     status: Optional[str] = None
     spacecraft_id: Optional[int] = None
-    
+
 class CommandQueue(CommandQueueBase):
-    id:int
+    id: int
     
     class Config:
         orm_mode = True
-    
-
-    
-    

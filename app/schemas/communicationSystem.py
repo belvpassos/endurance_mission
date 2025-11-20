@@ -13,18 +13,19 @@ class CommunicationBase(BaseModel):
     signal_strength: Optional[float] = None
     uplink_status: LinkStatus
     downlink_status: LinkStatus
-    last_contacted_time: Optional[datetime] = None
+    last_contact_time: Optional[datetime] = None
     
 class CommunicationCreate(CommunicationBase):
     spacecraft_id: int
-    
+
 class CommunicationUpdate(BaseModel):
     latency: Optional[float] = None
     signal_strength: Optional[float] = None
     uplink_status: Optional[LinkStatus] = None
     downlink_status: Optional[LinkStatus] = None
     last_contact_time: Optional[datetime] = None
-    
+    spacecraft_id: Optional[int] = None
+
 class Communication(CommunicationBase):
     id: int
     spacecraft_id: int
