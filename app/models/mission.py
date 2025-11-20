@@ -7,11 +7,11 @@ class Mission(Base):
     __tablename__ = "missions"
     
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    status = Column(String)
+    name = Column(String, index=True, nullable=False)
+    status = Column(String, nullable=False)
     start_time = Column(DateTime, default=datetime.datetime.utcnow)
     
-    crew_members = relationship("Crew", back_populates="mission", cascade="all, delete")
-    telemetry_data = relationship("Telemetry", back_populates="mission")
-    
+    # Relacionamentos
+    crew_members = relationship("Crew", back_populates="mission", cascade="all, delete-orphan")
+    telemetry_data = relationship("Telemetry", back_populates="mission", cascade="all, delete-orphan")
     spacecraft_status = relationship("SpacecraftStatus", back_populates="mission", cascade="all, delete-orphan")

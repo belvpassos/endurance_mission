@@ -6,7 +6,6 @@ class GroundControlLog(Base):
     __tablename__ = "ground_control_log"
     
     id = Column(Integer, primary_key=True, index=True)
-    
     timestamp = Column(DateTime, default=datetime.utcnow)
     sender = Column(String)
     receiver = Column(String)

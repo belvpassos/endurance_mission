@@ -13,4 +13,4 @@ class LifeSupportSystem(Base):
     pressure = Column(Float, nullable=False)
     temperature = Column(Float, nullable=False)
     
-    is_operatonal = Column(Boolean, nullable=False, default=True)
+    is_operational = Column(Boolean, nullable=False, default=True)

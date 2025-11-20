@@ -6,14 +6,13 @@ class SoftwareUpdateLog(Base):
     __tablename__ = "software_update_log"
     
     id = Column(Integer, primary_key=True, index=True)
+
+    version = Column(String, nullable=False)
+    update_type = Column(String, nullable=False)  # ex: 'patch', 'major', 'security'
+    status = Column(String, nullable=False)       # ex: 'pending', 'in_progress', 'completed', 'failed'
+    initiated_by = Column(String(100))            # boa prática: limitar tamanho
     
-    version = Column(String)
-    update_type = Column(String)
-    status = Column(String)
-    initiated_by = Column(String)
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
-    
+
     spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"))
-    
-    

@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, E
 from app.database import Base
 from datetime import datetime
 
-class DockingStatus (enum.Enum):
+class DockingStatus(enum.Enum):
     UNDOCKED = "undocked"
     DOCKING = "docking"
     DOCKED = "docked"

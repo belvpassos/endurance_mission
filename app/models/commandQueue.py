@@ -7,11 +7,11 @@ class CommandQueue(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     command = Column(String, nullable=False)
-    parameters = Column(String)
+    parameters = Column(String, nullable=True)
     scheduled_time = Column(DateTime, default=datetime.utcnow)
     executed = Column(Boolean, default=False)
     executed_time = Column(DateTime, nullable=True)
     priority = Column(Integer, default=1)
     status = Column(String, default="scheduled")
     
-    spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"))
+    spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"), nullable=False)
