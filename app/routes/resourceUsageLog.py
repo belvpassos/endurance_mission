@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
@@ -9,6 +9,7 @@ from app.schemas.resourceUsageLog import (
     ResourceUsageLogCreate,
     ResourceUsageLogUpdate
 )
+from app.schemas.common import OperationStatus
 
 router = APIRouter(prefix="/resource-usage-log", tags=["Resource Usage Log"])
 
@@ -16,18 +17,18 @@ router = APIRouter(prefix="/resource-usage-log", tags=["Resource Usage Log"])
 # ------------------
 # Create Log
 # ------------------
-@router.post("/", response_model=ResourceUsageLog)
+@router.post("/", response_model=ResourceUsageLog, status_code=status.HTTP_201_CREATED)
 def create_log(entry: ResourceUsageLogCreate, db: Session = Depends(get_db)):
     try:
-        new_entry = ResourceUsageLogModel(**entry.dict())
+        new_entry = ResourceUsageLogModel(**entry.model_dump())
         db.add(new_entry)
         db.commit()
         db.refresh(new_entry)
         return new_entry
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Could not create resource usage log entry: {exc}")
 
 
 
@@ -63,23 +64,23 @@ def update_log(entry_id: int, updated: ResourceUsageLogUpdate, db: Session = Dep
         raise HTTPException(status_code=404, detail="Log entry not found")
 
     try:
-        for key, value in updated.dict(exclude_unset=True).items():
+        for key, value in updated.model_dump(exclude_unset=True).items():
             setattr(entry, key, value)
 
         db.commit()
         db.refresh(entry)
         return entry
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Could not update resource usage log entry: {exc}")
 
 
 
 # ------------------
 # Delete log
 # ------------------
-@router.delete("/{entry_id}")
+@router.delete("/{entry_id}", response_model=OperationStatus)
 def delete_log(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(ResourceUsageLogModel).filter(ResourceUsageLogModel.id == entry_id).first()
 
@@ -89,11 +90,11 @@ def delete_log(entry_id: int, db: Session = Depends(get_db)):
     try:
         db.delete(entry)
         db.commit()
-        return {"message": "Log entry deleted successfully"}
+        return OperationStatus(detail="Resource usage log entry deleted successfully")
 
-    except SQLAlchemyError:
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Error deleting log entry")
+        raise HTTPException(status_code=500, detail=f"Could not delete resource usage log entry: {exc}")
 
 
 

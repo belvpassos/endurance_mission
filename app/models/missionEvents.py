@@ -12,7 +12,10 @@ class MissionEvent(Base):
     __tablename__ = "mission_events"
     
     id = Column(Integer, primary_key=True, index=True)
-    event_type = Column(Enum(EventType), nullable=False)
+    event_type = Column(
+        Enum(EventType, values_callable=lambda enum_cls: [item.value for item in enum_cls], native_enum=False),
+        nullable=False,
+    )
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
     description = Column(String, nullable=True)
     

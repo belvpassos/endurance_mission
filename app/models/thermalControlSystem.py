@@ -13,6 +13,13 @@ class ThermalControlSystem(Base):
     id = Column(Integer, primary_key=True, index=True)
     internal_temperature = Column(Float, nullable=False)
     external_temperature = Column(Float, nullable=False)
-    cooling_system_status = Column(Enum(CoolingSystemStatus), nullable=False)
+    cooling_system_status = Column(
+        Enum(
+            CoolingSystemStatus,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+            native_enum=False,
+        ),
+        nullable=False,
+    )
     
     spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"), nullable=False)

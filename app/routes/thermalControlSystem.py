@@ -1,22 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.thermalControlSystem import ThermalControlSystem
 from app.schemas.thermalControlSystem import ThermalControlSystemCreate, ThermalControlSystemUpdate, ThermalControlSystemResponse
+from app.schemas.common import OperationStatus
 
 router = APIRouter(prefix="/thermal-control", tags=["Thermal Control System"])
 
-@router.post("/", response_model=ThermalControlSystemResponse)
+@router.post("/", response_model=ThermalControlSystemResponse, status_code=status.HTTP_201_CREATED)
 def create_thermal_system(data: ThermalControlSystemCreate, db: Session = Depends(get_db)):
     try:
-        system = ThermalControlSystem(**data.dict())
+        system = ThermalControlSystem(**data.model_dump())
         db.add(system)
         db.commit()
         db.refresh(system)
         return system
-    except Exception:
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to create thermal system entry")
+        raise HTTPException(status_code=500, detail=f"Could not create thermal system entry: {exc}")
 
 @router.get("/", response_model=list[ThermalControlSystemResponse])
 def list_thermal_systems(db: Session = Depends(get_db)):
@@ -35,16 +37,16 @@ def update_thermal_system(system_id: int, updated_data: ThermalControlSystemUpda
     if not system:
         raise HTTPException(status_code=404, detail="Thermal system entry not found")
     try:
-        for key, value in updated_data.dict(exclude_unset=True).items():
+        for key, value in updated_data.model_dump(exclude_unset=True).items():
             setattr(system, key, value)
         db.commit()
         db.refresh(system)
         return system
-    except Exception:
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to update thermal system entry")
+        raise HTTPException(status_code=500, detail=f"Could not update thermal system entry: {exc}")
 
-@router.delete("/{system_id}")
+@router.delete("/{system_id}", response_model=OperationStatus)
 def delete_thermal_system(system_id: int, db: Session = Depends(get_db)):
     system = db.query(ThermalControlSystem).filter(ThermalControlSystem.id == system_id).first()
     if not system:
@@ -52,7 +54,7 @@ def delete_thermal_system(system_id: int, db: Session = Depends(get_db)):
     try:
         db.delete(system)
         db.commit()
-        return {"detail": "Thermal system entry deleted successfully"}
-    except Exception:
+        return OperationStatus(detail="Thermal system entry deleted successfully")
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to delete thermal system entry")
+        raise HTTPException(status_code=500, detail=f"Could not delete thermal system entry: {exc}")

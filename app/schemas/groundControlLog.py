@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 class GroundControlLogBase(BaseModel):
     sender: str
@@ -12,9 +13,18 @@ class GroundControlLogBase(BaseModel):
 class GroundControlLogCreate(GroundControlLogBase):
     pass
 
+
+class GroundControlLogUpdate(BaseModel):
+    sender: Optional[str] = None
+    receiver: Optional[str] = None
+    message_type: Optional[str] = None
+    content: Optional[str] = None
+    acknowledged: Optional[bool] = None
+    spacecraft_id: Optional[int] = None
+
 class GroundControlLogOut(GroundControlLogBase):
     id: int
     timestamp: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True

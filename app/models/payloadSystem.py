@@ -18,7 +18,11 @@ class PayloadSystem(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)
-    status = Column(Enum(PayloadStatus), nullable=False, default=PayloadStatus.STANDBY)
+    status = Column(
+        Enum(PayloadStatus, values_callable=lambda enum_cls: [item.value for item in enum_cls], native_enum=False),
+        nullable=False,
+        default=PayloadStatus.STANDBY,
+    )
     mass = Column(Float, nullable=True)
     power_requirement = Column(Float, nullable=True)
     data_rate = Column(Float, nullable=True)

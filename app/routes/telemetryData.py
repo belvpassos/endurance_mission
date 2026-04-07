@@ -1,22 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.telemetryData import Telemetry
 from app.schemas.telemetryData import TelemetryDataCreate, TelemetryDataResponse, TelemetryDataUpdate
+from app.schemas.common import OperationStatus
 
 router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
 
-@router.post("/", response_model=TelemetryDataResponse)
+@router.post("/", response_model=TelemetryDataResponse, status_code=status.HTTP_201_CREATED)
 def create_telemetry(data: TelemetryDataCreate, db: Session = Depends(get_db)):
     try:
-        telemetry = Telemetry(**data.dict())
+        telemetry = Telemetry(**data.model_dump())
         db.add(telemetry)
         db.commit()
         db.refresh(telemetry)
         return telemetry
-    except Exception:
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to create telemetry data")
+        raise HTTPException(status_code=500, detail=f"Could not create telemetry data: {exc}")
 
 @router.get("/", response_model=list[TelemetryDataResponse])
 def list_telemetries(db: Session = Depends(get_db)):
@@ -35,16 +37,16 @@ def update_telemetry(telemetry_id: int, updated_data: TelemetryDataUpdate, db: S
     if not telemetry:
         raise HTTPException(status_code=404, detail="Telemetry not found")
     try:
-        for key, value in updated_data.dict(exclude_unset=True).items():
+        for key, value in updated_data.model_dump(exclude_unset=True).items():
             setattr(telemetry, key, value)
         db.commit()
         db.refresh(telemetry)
         return telemetry
-    except Exception:
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to update telemetry data")
+        raise HTTPException(status_code=500, detail=f"Could not update telemetry data: {exc}")
 
-@router.delete("/{telemetry_id}")
+@router.delete("/{telemetry_id}", response_model=OperationStatus)
 def delete_telemetry(telemetry_id: int, db: Session = Depends(get_db)):
     telemetry = db.query(Telemetry).filter(Telemetry.id == telemetry_id).first()
     if not telemetry:
@@ -52,7 +54,7 @@ def delete_telemetry(telemetry_id: int, db: Session = Depends(get_db)):
     try:
         db.delete(telemetry)
         db.commit()
-        return {"detail": "Telemetry data deleted successfully"}
-    except Exception:
+        return OperationStatus(detail="Telemetry data deleted successfully")
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to delete telemetry data")
+        raise HTTPException(status_code=500, detail=f"Could not delete telemetry data: {exc}")

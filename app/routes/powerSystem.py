@@ -1,22 +1,24 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.powerSystem import PowerSystem as PowerSystemModel
 from app.schemas.powerSystem import PowerSystem, PowerSystemCreate, PowerSystemUpdate
+from app.schemas.common import OperationStatus
 
 router = APIRouter(prefix="/power-system", tags=["Power System"])
 
-@router.post("/", response_model=PowerSystem)
+@router.post("/", response_model=PowerSystem, status_code=status.HTTP_201_CREATED)
 def create_power(entry: PowerSystemCreate, db: Session = Depends(get_db)):
     try:
-        new_entry = PowerSystemModel(**entry.dict())
+        new_entry = PowerSystemModel(**entry.model_dump())
         db.add(new_entry)
         db.commit()
         db.refresh(new_entry)
         return new_entry
-    except Exception as e:
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=400, detail=f"Error creating power entry: {e}")
+        raise HTTPException(status_code=500, detail=f"Could not create power entry: {exc}")
 
 @router.get("/{entry_id}", response_model=PowerSystem)
 def read_power(entry_id: int, db: Session = Depends(get_db)):
@@ -34,19 +36,19 @@ def update_power(entry_id: int, updated: PowerSystemUpdate, db: Session = Depend
     entry = db.query(PowerSystemModel).filter(PowerSystemModel.id == entry_id).first()
     if entry is None:
         raise HTTPException(status_code=404, detail="Power entry not found")
-    
-    for key, value in updated.dict(exclude_unset=True).items():
+
+    for key, value in updated.model_dump(exclude_unset=True).items():
         setattr(entry, key, value)
-    
+
     try:
         db.commit()
         db.refresh(entry)
         return entry
-    except Exception as e:
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=400, detail=f"Error updating power entry: {e}")
+        raise HTTPException(status_code=500, detail=f"Could not update power entry: {exc}")
 
-@router.delete("/{entry_id}")
+@router.delete("/{entry_id}", response_model=OperationStatus)
 def delete_power(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(PowerSystemModel).filter(PowerSystemModel.id == entry_id).first()
     if entry is None:
@@ -55,7 +57,7 @@ def delete_power(entry_id: int, db: Session = Depends(get_db)):
     try:
         db.delete(entry)
         db.commit()
-        return {"message": "Entry deleted successfully"}
-    except Exception as e:
+        return OperationStatus(detail="Power entry deleted successfully")
+    except SQLAlchemyError as exc:
         db.rollback()
-        raise HTTPException(status_code=400, detail=f"Error deleting power entry: {e}")
+        raise HTTPException(status_code=500, detail=f"Could not delete power entry: {exc}")

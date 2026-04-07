@@ -15,7 +15,10 @@ class DockingSystem(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     target_module = Column(String)
-    status = Column(Enum(DockingStatus), default=DockingStatus.UNDOCKED)
+    status = Column(
+        Enum(DockingStatus, values_callable=lambda enum_cls: [item.value for item in enum_cls], native_enum=False),
+        default=DockingStatus.UNDOCKED,
+    )
     initiated_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     success = Column(Boolean, default=False)

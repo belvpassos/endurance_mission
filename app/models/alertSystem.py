@@ -16,7 +16,10 @@ class AlertSystem(Base):
     
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
     system = Column(String, nullable=False)
-    alert_type = Column(SqlEnum(AlertType), nullable=False)
+    alert_type = Column(
+        SqlEnum(AlertType, values_callable=lambda enum_cls: [item.value for item in enum_cls], native_enum=False),
+        nullable=False,
+    )
     message = Column(String, nullable=False)
     acknowledged = Column(Boolean, default=False, nullable=False)
     resolved = Column(Boolean, default=False, nullable=False)

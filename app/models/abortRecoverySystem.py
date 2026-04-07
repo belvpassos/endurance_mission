@@ -16,7 +16,11 @@ class AbortRecoverySystem(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # Status limitado a valores definidos
-    status = Column(Enum(AbortStatusEnum), default=AbortStatusEnum.standby, nullable=False)
+    status = Column(
+        Enum(AbortStatusEnum, values_callable=lambda enum_cls: [item.value for item in enum_cls], native_enum=False),
+        default=AbortStatusEnum.standby,
+        nullable=False,
+    )
     
     abort_reason = Column(String, nullable=True)
     

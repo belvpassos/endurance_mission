@@ -14,6 +14,9 @@ class AnomalyDetection(Base):
     id = Column(Integer, primary_key=True, index=True)
     anomaly_logs = Column(Text, nullable=False)   # logs podem ser longos
     system_alerts = Column(Text, nullable=False)  # mensagens do sistema também
-    priority_level = Column(SqlEnum(PriorityLevel), nullable=False)
+    priority_level = Column(
+        SqlEnum(PriorityLevel, values_callable=lambda enum_cls: [item.value for item in enum_cls], native_enum=False),
+        nullable=False,
+    )
     
     spacecraft_id = Column(Integer, ForeignKey("spacecraft.id"), nullable=False)

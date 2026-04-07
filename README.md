@@ -1,118 +1,276 @@
-# 🚀 Space Mission Control Backend
+# Endurance Mission Control
 
-This project simulates a backend system for a space mission control application. It models critical subsystems such as fuel management, power distribution, thermal control, communication, telemetry, navigation, command queues, anomaly detection, and many others — all designed to reflect real-world spacecraft mission scenarios.
+Backend de mission control para uma nave de exploração interestelar inspirado na linguagem operacional de *Interstellar*.
 
----
+O objetivo deste projeto é simular um sistema de controle de missão com foco em subsistemas críticos, telemetria, navegação, alertas, comunicação com ground control e visão consolidada do estado da missão. Ele foi pensado como peça de portfólio para demonstrar modelagem de domínio, organização de backend e capacidade de construir software com linguagem próxima de operações aeroespaciais.
 
-## 🧠 Overview
+## What This Project Demonstrates
 
-This application is ideal for simulation, testing, and showcasing backend engineering skills in the context of critical aerospace software systems.
+- modelagem de sistemas críticos com `FastAPI`, `SQLAlchemy` e `Pydantic`
+- organização modular por domínio: `models`, `schemas` e `routes`
+- backend orientado a operações de missão, não apenas CRUD genérico
+- narrativa técnica inspirada em exploração deep-space
+- base pronta para evoluir para dashboard, documentação visual e deploy
 
-It is fully modular and scalable, using **FastAPI** and **SQLAlchemy** to simulate the backend of a realistic space mission control system.
+## Mission Scenario
 
----
+O projeto apresenta a nave `Endurance` em uma missão de exploração e coordenação deep-space. A demo atual usa um cenário com:
 
-## 🧩 Features
+- nave `Endurance`
+- missão `Lazarus Relay Expedition`
+- corpos de referência como `Miller`, `Mann` e `Edmunds`
+- eventos orbitais próximos de `Gargantua`
+- alertas operacionais, status da nave e logs de ground control
 
-### ✅ Core Subsystems
+Isso ajuda o projeto a sair de uma API abstrata e virar uma demonstração com contexto, história operacional e identidade própria.
 
-* **Fuel System**: Tracks fuel levels, consumption rate, and temperature.
-* **Power System**: Monitors battery level, solar panel status, generation, and consumption.
-* **Thermal Control System**: Monitors internal and external temperatures, cooling system status.
-* **Communication System**: Handles latency, signal strength, uplink/downlink status, last contact time.
-* **Navigation System**: Simulates trajectory, course corrections, and status.
-* **Anomaly Detection**: Logs alerts, anomalies, and priority levels.
-* **Mission Events**: Tracks key events like engine burns, orbital insertion, and stage separation.
+## Current Capabilities
 
-### 📡 Telemetry and Real-Time Monitoring
+### Core domains
 
-* **Telemetry Data**: Constantly updated stream of system readings.
-* **Command Queue**: Allows scheduling, prioritizing, and execution of spacecraft commands.
-* **Abort/Recovery System**: Monitors emergency aborts and recovery procedures.
-* **Event Timeline**: Chronological listing of mission-critical events.
-* **Sensor Array**: Simulates physical environmental readings and statuses.
+- `Spacecraft`: catálogo de veículos, perfil de missão e status operacional
+- `Mission`: ciclo de missão e contexto principal
+- `Crew`: tripulação e papéis
+- `Planet`: destinos e corpos celestes monitorados
+- `Spacecraft Status`: snapshot de combustível, oxigênio, temperatura e pressão
+- `Mission Events`: eventos de missão como engine burns e orbital insertion
+- `Alert System`: alertas por criticidade e subsistema
+- `Ground Control Log`: mensagens entre controle de missão e nave
 
-### 💡 Mission Operations
+### Subsystems and support modules
 
-* **Life Support System**: Tracks oxygen, CO₂, humidity, and crew vitals.
-* **Software Update Log**: Simulates OTA software updates.
-* **Ground Control Log**: Captures messages between ground and spacecraft.
-* **Alert System**: Prioritized and categorized system alerts.
-* **Docking System**: Docking operations and partner spacecraft status.
-* **Payload System**: Monitors payloads, mass, power, and operational status.
-* **Command Log**: Execution history of issued commands.
+- fuel
+- power
+- thermal control
+- communication
+- navigation
+- telemetry
+- abort and recovery
+- docking
+- payload
+- environment monitor
+- resource management
+- software update log
+- subsystem diagnostics
 
-### 🔧 Resource Management
+### Portfolio-focused endpoints
 
-* **Resource Usage Log**: Tracks usage of oxygen, power, and other consumables.
-* **Environment Monitor**: Monitors radiation, pressure, and magnetic fields.
+- `GET /`
+  Retorna metadados básicos da API
+- `GET /health`
+  Confirma que a aplicação está operacional
+- `POST /demo/bootstrap`
+  Cria um dataset demo coerente para apresentação
+- `GET /mission-control/overview`
+  Retorna uma visão executiva da missão com métricas, snapshot e alertas ativos
 
----
+## Tech Stack
 
-## 🛠️ Technologies Used
+- `FastAPI`
+- `SQLAlchemy 2`
+- `Pydantic 2`
+- `Uvicorn`
+- `python-dotenv`
+- `SQLite` como fallback local
+- compatível com `DATABASE_URL` para futura migração de banco
 
-* **FastAPI**: High-performance Python web framework
-* **SQLAlchemy**: ORM for database modeling and management
-* **PostgreSQL** (or any SQL DB): Database backend
-* **Uvicorn**: ASGI server
-* **Pydantic**: Data validation and parsing
+## Architecture Overview
 
----
+```mermaid
+flowchart TD
+    A["Client / Swagger Demo"] --> B["FastAPI Application"]
+    B --> C["Routes Layer"]
+    C --> D["Schemas Layer (Pydantic)"]
+    C --> E["Models Layer (SQLAlchemy)"]
+    E --> F["Database via DATABASE_URL"]
 
-## 📁 Project Structure
+    C --> G["Mission Control Overview"]
+    C --> H["Spacecraft"]
+    C --> I["Mission"]
+    C --> J["Crew"]
+    C --> K["Planet"]
+    C --> L["Alerts / Events / Logs"]
 
+    G --> E
+    H --> E
+    I --> E
+    J --> E
+    K --> E
+    L --> E
 ```
-├── app/
-│   ├── main.py
-│   ├── database.py
-│   ├── models/
-│   ├── schemas/
-│   ├── routes/
-├── LICENSE.txt
-├── README.md
-├── requirements.txt
+
+## Domain Model
+
+```mermaid
+erDiagram
+    MISSION ||--o{ CREW : contains
+    MISSION ||--o{ SPACECRAFT_STATUS : records
+    MISSION {
+        int id
+        string name
+        string status
+        datetime start_time
+    }
+    CREW {
+        int id
+        string name
+        string role
+        int mission_id
+    }
+    SPACECRAFT {
+        int id
+        string name
+        string registry_code
+        string vehicle_class
+        string status
+    }
+    SPACECRAFT_STATUS {
+        int id
+        int mission_id
+        float fuel_level
+        float oxygen_level
+        float temperature
+        float pressure
+    }
+    ALERT_SYSTEM {
+        int id
+        string system
+        string alert_type
+        boolean resolved
+        int spacecraft_id
+    }
+    MISSION_EVENTS {
+        int id
+        string event_type
+        datetime timestamp
+        int spacecraft_id
+    }
+    GROUND_CONTROL_LOG {
+        int id
+        string sender
+        string receiver
+        string message_type
+        int spacecraft_id
+    }
+    PLANETS {
+        int id
+        string name
+        string type
+        float habitability_score
+    }
+    SPACECRAFT ||--o{ ALERT_SYSTEM : emits
+    SPACECRAFT ||--o{ MISSION_EVENTS : generates
+    SPACECRAFT ||--o{ GROUND_CONTROL_LOG : receives
 ```
 
----
+## Design Decisions
 
-## 🧪 How to Run
+- `Domain-first structure`
+  Cada módulo segue a separação `models` + `schemas` + `routes`, o que ajuda a manter clareza entre persistência, contrato da API e comportamento HTTP.
+- `Operational narrative over generic CRUD`
+  O projeto foi desenhado para parecer um sistema de missão real, então os módulos e dados demo seguem linguagem operacional e contexto de missão.
+- `Portfolio-ready demo endpoint`
+  O endpoint `POST /demo/bootstrap` reduz atrito para demonstração e permite mostrar valor rapidamente em entrevista.
+- `Mission overview aggregation`
+  O endpoint `GET /mission-control/overview` existe para mostrar pensamento de sistema e observabilidade, não apenas CRUD isolado.
+- `Database portability`
+  O projeto usa `DATABASE_URL`, com `SQLite` local como fallback, preparando terreno para migração futura para PostgreSQL.
 
-1. Clone this repository
-2. Create a virtual environment
-3. Install dependencies:
+## Project Structure
 
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run the server:
+```text
+app/
+├── main.py
+├── config.py
+├── database.py
+├── models/
+├── routes/
+└── schemas/
 
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+tests/
+└── test_mission_control_smoke.py
+```
 
----
+## Running Locally
 
-## 🎯 Author Goals
+### 1. Activate the virtual environment
 
-This project was built by **Maria Izabel Vieira Passos**, a UX/UI Designer transitioning into front-end, backend and aerospace software engineering.
+```bash
+source /Users/mariaizabelvieirapassos/Desktop/endurance_mission/venv/bin/activate
+```
 
-The goal is to demonstrate high-level backend architecture, critical system modeling, and readiness for working in aerospace-grade environments.
+### 2. Go to the project folder
 
----
+```bash
+cd /Users/mariaizabelvieirapassos/Desktop/endurance_mission/endurance_mission
+```
 
-## 📩 Contact
+### 3. Install dependencies if needed
 
-* GitHub: [@MariaIzabelVieiraPassos](https://github.com/belvpassos)
-* Email: ([mariaizabel09@outlook.com](mailto:mariaizabel09@outlook.com))
+```bash
+pip install -r requirements.txt
+```
 
----
+### 4. Start the API
+
+```bash
+DATABASE_URL=sqlite:///./test.db uvicorn app.main:app --reload
+```
+
+### 5. Open the docs
+
+- [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+
+## Demo Flow For Recruiters
+
+Se você quiser apresentar este projeto em 2-3 minutos, o fluxo recomendado é:
+
+1. abrir `/docs`
+2. executar `POST /demo/bootstrap`
+3. abrir `GET /mission-control/overview`
+4. mostrar os módulos de `spacecraft`, `missions`, `alerts`, `mission-events` e `ground-control-log`
+5. explicar como a API foi organizada para representar operações de missão e monitoramento de subsistemas
+
+## Suggested Interview Pitch
+
+Se você precisar explicar rapidamente o projeto em uma entrevista, uma boa versão curta seria:
+
+> "Endurance Mission Control is a FastAPI backend that simulates a deep-space mission control environment inspired by Interstellar. I built it to model spacecraft operations, crew, telemetry, alerts, mission events and ground-control communication in a way that feels closer to an operational aerospace system than a generic CRUD app. I also added a mission overview layer and a demo bootstrap flow so the project is easy to explore and present."
+
+## Smoke Tests
+
+O projeto já possui um teste de fumaça para validar boot da aplicação e fluxo básico da demo:
+
+```bash
+python -m unittest tests/test_mission_control_smoke.py
+```
+
+## Why This Is A Strong Portfolio Project
+
+Este projeto comunica competências importantes para vagas técnicas:
+
+- design de backend modular
+- modelagem de domínio com entidades relacionadas
+- atenção a observabilidade e estado operacional
+- capacidade de traduzir um conceito complexo em um sistema navegável
+- preocupação com demonstração, documentação e apresentação técnica
+
+Ele também mostra algo importante para o setor aeroespacial: não apenas código, mas pensamento de sistema.
+
+## Next Planned Improvements
+
+- padronização de respostas e tratamento de erro nas rotas mais antigas
+- ampliação dos testes para fluxos de CRUD e overview
+- dashboard visual para mission control
+- preparação para deploy
+- documentação técnica em inglês voltada a recrutadores
+
+## Author
+
+Maria Izabel Vieira Passos  
+GitHub: [@belvpassos](https://github.com/belvpassos)
 
 ## License
 
-© 2025 Maria Izabel Vieira Passos
-All rights reserved.
-
-This software and its source code are the intellectual property of the author.
-No part of this project may be copied, modified, distributed, or used in any form without explicit written permission from the author.
-
-Unauthorized use is strictly prohibited and may result in legal action.
+© 2025 Maria Izabel Vieira Passos. All rights reserved.

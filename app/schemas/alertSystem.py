@@ -21,17 +21,17 @@ class AlertCreate(AlertBase):
     pass
 
 class AlertUpdate(BaseModel):
-    system: Optional[str]
-    alert_type: Optional[AlertType]
-    message: Optional[str]
-    acknowledged: Optional[bool]
-    resolved: Optional[bool]
-    resolved_at: Optional[datetime]
-    spacecraft_id: Optional[int]
+    system: Optional[str] = None
+    alert_type: Optional[AlertType] = None
+    message: Optional[str] = None
+    acknowledged: Optional[bool] = None
+    resolved: Optional[bool] = None
+    resolved_at: Optional[datetime] = None
+    spacecraft_id: Optional[int] = None
 
 class Alert(AlertBase):
     id: int
     timestamp: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
