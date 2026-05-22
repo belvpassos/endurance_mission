@@ -7,11 +7,13 @@ from app.database import get_db
 from app.models.alertSystem import AlertSystem, AlertType
 from app.models.crew import Crew
 from app.models.groundControlLog import GroundControlLog
-from app.models.mission import Mission
+from app.models.mission import Mission, MissionPhase
 from app.models.missionEvents import EventType, MissionEvent
+from app.models.navigationSystem import NavigationSystem
 from app.models.planet import Planet
 from app.models.spacecraft import Spacecraft
 from app.models.spacecraftStatus import SpacecraftStatus
+from app.services.missionState import derive_mission_phase
 from app.schemas.missionControl import (
     DemoBootstrapResponse,
     MissionAlertEntry,
@@ -22,6 +24,45 @@ from app.schemas.missionControl import (
 )
 
 router = APIRouter()
+
+
+def evaluate_readiness(
+    latest_status: SpacecraftStatus | None,
+    active_alert_models: list[AlertSystem],
+    latest_navigation: NavigationSystem | None,
+) -> tuple[str, str]:
+    critical_alert_count = sum(1 for alert in active_alert_models if alert.alert_type == AlertType.CRITICAL)
+    warning_alert_count = sum(1 for alert in active_alert_models if alert.alert_type == AlertType.WARNING)
+
+    if not latest_status or not latest_status.is_operational:
+        return "degraded", "Spacecraft status reports degraded or unavailable operations."
+
+    if critical_alert_count > 0:
+        return "degraded", "One or more unresolved critical alerts require immediate mission control action."
+
+    if latest_navigation:
+        if (
+            latest_navigation.alignment_error_deg is not None
+            and latest_navigation.alignment_error_deg > 1.0
+        ) or (
+            latest_navigation.residual_drift_km is not None
+            and latest_navigation.residual_drift_km > 20.0
+        ):
+            return "degraded", "Navigation solution is outside course-correction safety limits."
+
+        if (
+            latest_navigation.alignment_error_deg is not None
+            and latest_navigation.alignment_error_deg > 0.25
+        ) or (
+            latest_navigation.residual_drift_km is not None
+            and latest_navigation.residual_drift_km > 5.0
+        ):
+            return "monitoring", "Navigation drift is elevated and remains under active monitoring."
+
+    if warning_alert_count > 0:
+        return "monitoring", "Open warning alerts remain under active review."
+
+    return "nominal", "All monitored systems remain within current mission thresholds."
 
 
 @router.get("/mission-control/overview", response_model=MissionControlOverview, tags=["Mission Control"])
@@ -41,19 +82,33 @@ def get_mission_control_overview(db: Session = Depends(get_db)):
     latest_spacecraft = db.query(Spacecraft).order_by(Spacecraft.created_at.desc()).first()
     latest_status = db.query(SpacecraftStatus).order_by(SpacecraftStatus.timestamp.desc()).first()
     recent_events = db.query(MissionEvent).order_by(MissionEvent.timestamp.desc()).limit(5).all()
-
-    if latest_status and latest_status.is_operational and critical_alert_count == 0:
-        readiness = "nominal"
-    elif latest_status and latest_status.is_operational:
-        readiness = "monitoring"
-    else:
-        readiness = "degraded"
+    latest_event = db.query(MissionEvent).order_by(MissionEvent.timestamp.desc()).first()
+    latest_navigation = db.query(NavigationSystem).order_by(NavigationSystem.last_correction_at.desc()).first()
+    course_correction_count = (
+        db.query(MissionEvent)
+        .filter(MissionEvent.event_type == EventType.COURSE_CORRECTION_BURN)
+        .count()
+    )
+    mission_phase = derive_mission_phase(latest_event, latest_mission)
+    readiness, readiness_reason = evaluate_readiness(latest_status, active_alert_models, latest_navigation)
 
     snapshot = MissionOverviewSnapshot(
         mission_name=latest_mission.name if latest_mission else None,
         mission_status=latest_mission.status if latest_mission else None,
+        mission_phase=mission_phase,
         spacecraft_name=latest_spacecraft.name if latest_spacecraft else None,
         spacecraft_status=latest_spacecraft.status if latest_spacecraft else None,
+        current_flight_stage=latest_event.event_type.value if latest_event else None,
+        current_target=latest_navigation.target_waypoint if latest_navigation else None,
+        course_corrections_executed=course_correction_count,
+        readiness_reason=readiness_reason,
+        navigation_status=(
+            latest_navigation.navigation_system_status.value
+            if latest_navigation and hasattr(latest_navigation.navigation_system_status, "value")
+            else latest_navigation.navigation_system_status if latest_navigation else None
+        ),
+        alignment_error_deg=latest_navigation.alignment_error_deg if latest_navigation else None,
+        residual_drift_km=latest_navigation.residual_drift_km if latest_navigation else None,
         latest_status_timestamp=latest_status.timestamp if latest_status else None,
         fuel_level=latest_status.fuel_level if latest_status else None,
         oxygen_level=latest_status.oxygen_level if latest_status else None,
@@ -109,14 +164,15 @@ def bootstrap_demo_data(db: Session = Depends(get_db)):
         registry_code="END-PRIME-01",
         vehicle_class="Interstellar endurance vehicle",
         manufacturer="NASA / Lazarus Program",
-        status="mission-ready",
-        mission_profile="Deep-space transit and planetary survey coordination",
-        home_base="Cooper Station",
+        status="landed-and-safe",
+        mission_profile="Launch, orbital transfer, course correction, descent and landing operations",
+        home_base="Launch and Recovery Complex 39A",
     )
     mission = Mission(
         name="Lazarus Relay Expedition",
-        status="transit_to_gargantua",
-        start_time=datetime(2067, 4, 12, 9, 30),
+        status="ship_landed",
+        phase=MissionPhase.SURFACE_OPERATIONS,
+        start_time=datetime(2067, 4, 12, 8, 15),
     )
     planets = [
         Planet(
@@ -184,41 +240,123 @@ def bootstrap_demo_data(db: Session = Depends(get_db)):
             ),
             SpacecraftStatus(
                 mission_id=mission.id,
-                timestamp=datetime(2067, 4, 12, 12, 42),
-                fuel_level=74.9,
-                oxygen_level=91.4,
-                temperature=22.0,
-                pressure=100.9,
+                timestamp=datetime(2067, 4, 12, 14, 12),
+                fuel_level=61.7,
+                oxygen_level=89.9,
+                temperature=23.1,
+                pressure=100.4,
                 is_operational=True,
                 life_support_active=True,
                 communication_active=True,
             ),
         ]
     )
+    db.add(
+        NavigationSystem(
+            trajectory="Launch ascent -> parking orbit -> transfer corridor -> deorbit approach -> landing corridor",
+            target_waypoint="Landing Zone Alpha",
+            course_correction=2,
+            delta_v_mps=184.6,
+            burn_duration_seconds=96.0,
+            alignment_error_deg=0.14,
+            residual_drift_km=1.8,
+            maneuver_window_open=datetime(2067, 4, 12, 12, 34),
+            maneuver_window_close=datetime(2067, 4, 12, 12, 44),
+            last_correction_at=datetime(2067, 4, 12, 12, 39),
+            navigation_system_status="operational",
+            spacecraft_id=spacecraft.id,
+        )
+    )
     db.add_all(
         [
             MissionEvent(
-                event_type=EventType.ORBITAL_INSERTION,
-                timestamp=datetime(2067, 4, 12, 12, 5),
-                description="Stable insertion achieved on approach vector to Gargantua.",
+                event_type=EventType.GO_FOR_PROP_LOAD,
+                timestamp=datetime(2067, 4, 12, 8, 15),
+                description="Flight director issued go for propellant loading on the Endurance launch stack.",
                 spacecraft_id=spacecraft.id,
             ),
             MissionEvent(
-                event_type=EventType.ENGINE_BURN,
-                timestamp=datetime(2067, 4, 12, 12, 22),
-                description="Course correction burn completed for Miller descent corridor.",
+                event_type=EventType.PROP_LOAD_COMPLETE,
+                timestamp=datetime(2067, 4, 12, 8, 44),
+                description="Cryogenic propellant load completed and tanking stable.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.TERMINAL_COUNT,
+                timestamp=datetime(2067, 4, 12, 9, 20),
+                description="Terminal count entered with guidance, navigation and control polling nominal.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.ENGINE_IGNITION,
+                timestamp=datetime(2067, 4, 12, 9, 29),
+                description="Main engines at ignition start with chamber pressure rise within expected envelope.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.LIFTOFF,
+                timestamp=datetime(2067, 4, 12, 9, 30),
+                description="Endurance lifted off and cleared the tower on initial ascent.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.MAX_Q,
+                timestamp=datetime(2067, 4, 12, 9, 31),
+                description="Vehicle passed through maximum dynamic pressure.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.MECO,
+                timestamp=datetime(2067, 4, 12, 9, 38),
+                description="Main engine cutoff confirmed on schedule.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.ORBITAL_INSERTION,
+                timestamp=datetime(2067, 4, 12, 9, 51),
+                description="Stable orbital insertion achieved with guidance residuals within tolerance.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.COURSE_CORRECTION_BURN,
+                timestamp=datetime(2067, 4, 12, 11, 22),
+                description="Primary course correction burn completed for transfer toward the Gargantua approach corridor.",
                 spacecraft_id=spacecraft.id,
             ),
             MissionEvent(
                 event_type=EventType.STAGE_SEPARATION,
-                timestamp=datetime(2067, 4, 12, 12, 31),
-                description="Survey package separation confirmed for autonomous relay pass.",
+                timestamp=datetime(2067, 4, 12, 11, 31),
+                description="Autonomous relay package separation confirmed after orbital systems checkout.",
                 spacecraft_id=spacecraft.id,
             ),
             MissionEvent(
-                event_type=EventType.ENGINE_BURN,
+                event_type=EventType.COURSE_CORRECTION_BURN,
                 timestamp=datetime(2067, 4, 12, 12, 39),
-                description="Fine trim burn executed to stabilize descent geometry.",
+                description="Fine trim course correction executed to stabilize entry geometry for final descent.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.DEORBIT_BURN,
+                timestamp=datetime(2067, 4, 12, 13, 55),
+                description="Deorbit burn committed the vehicle to its landing trajectory.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.ENTRY_INTERFACE,
+                timestamp=datetime(2067, 4, 12, 14, 2),
+                description="Vehicle crossed entry interface and began guided atmospheric descent.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.LANDING_BURN,
+                timestamp=datetime(2067, 4, 12, 14, 9),
+                description="Landing burn initiated with vertical velocity converging to target values.",
+                spacecraft_id=spacecraft.id,
+            ),
+            MissionEvent(
+                event_type=EventType.SHIP_LANDING,
+                timestamp=datetime(2067, 4, 12, 14, 12),
+                description="Ship landing confirmed. Endurance safe on landing zone with crew in nominal condition.",
                 spacecraft_id=spacecraft.id,
             ),
         ]
@@ -258,30 +396,39 @@ def bootstrap_demo_data(db: Session = Depends(get_db)):
     db.add_all(
         [
             GroundControlLog(
-                timestamp=datetime(2067, 4, 12, 12, 8),
-                sender="Cooper Station",
+                timestamp=datetime(2067, 4, 12, 8, 12),
+                sender="Launch Director",
                 receiver="Endurance",
-                message_type="go_no_go",
-                content="Mission control confirms orbital insertion is stable. Proceed to descent review.",
+                message_type="go_for_prop_load",
+                content="Launch control is go for propellant load. Begin cryogenic loading sequence.",
                 acknowledged=True,
                 spacecraft_id=spacecraft.id,
             ),
             GroundControlLog(
-                timestamp=datetime(2067, 4, 12, 12, 30),
-                sender="Cooper Station",
+                timestamp=datetime(2067, 4, 12, 9, 18),
+                sender="Launch Director",
                 receiver="Endurance",
-                message_type="status_report",
-                content="Mission control confirms relay uptime and green corridor for descent operations.",
+                message_type="terminal_count",
+                content="Terminal count is authorized. Guidance, nav and flight software are green.",
                 acknowledged=True,
                 spacecraft_id=spacecraft.id,
             ),
             GroundControlLog(
-                timestamp=datetime(2067, 4, 12, 12, 44),
+                timestamp=datetime(2067, 4, 12, 11, 24),
+                sender="Cooper Station",
+                receiver="Endurance",
+                message_type="course_correction_report",
+                content="Primary course correction accepted. Residual drift is below corridor threshold.",
+                acknowledged=True,
+                spacecraft_id=spacecraft.id,
+            ),
+            GroundControlLog(
+                timestamp=datetime(2067, 4, 12, 14, 13),
                 sender="Endurance",
                 receiver="Cooper Station",
-                message_type="mission_update",
-                content="Vehicle nominal. Crew preparing for timed surface reconnaissance sequence.",
-                acknowledged=False,
+                message_type="landing_confirmation",
+                content="Endurance on the ground. Landing burn successful and crew condition nominal.",
+                acknowledged=True,
                 spacecraft_id=spacecraft.id,
             ),
         ]

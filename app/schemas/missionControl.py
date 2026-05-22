@@ -15,8 +15,16 @@ class MissionOverviewMetrics(BaseModel):
 class MissionOverviewSnapshot(BaseModel):
     mission_name: Optional[str] = None
     mission_status: Optional[str] = None
+    mission_phase: Optional[str] = None
     spacecraft_name: Optional[str] = None
     spacecraft_status: Optional[str] = None
+    current_flight_stage: Optional[str] = None
+    current_target: Optional[str] = None
+    course_corrections_executed: int = 0
+    readiness_reason: Optional[str] = None
+    navigation_status: Optional[str] = None
+    alignment_error_deg: Optional[float] = None
+    residual_drift_km: Optional[float] = None
     latest_status_timestamp: Optional[datetime] = None
     fuel_level: Optional[float] = None
     oxygen_level: Optional[float] = None

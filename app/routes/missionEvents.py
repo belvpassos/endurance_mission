@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models import missionEvents as models
 from app.schemas import missionEvents as schemas
 from app.schemas.common import OperationStatus
+from app.services.missionState import sync_latest_mission_phase_from_event
 
 router = APIRouter(prefix="/mission-events", tags=["Mission Events"])
 
@@ -13,6 +14,8 @@ def create_mission_event(event: schemas.MissionEventCreate, db: Session = Depend
     try:
         new_event = models.MissionEvent(**event.model_dump())
         db.add(new_event)
+        db.flush()
+        sync_latest_mission_phase_from_event(db, new_event)
         db.commit()
         db.refresh(new_event)
         return new_event
@@ -39,6 +42,7 @@ def update_event(event_id: int, updated: schemas.MissionEventUpdate, db: Session
     try:
         for key, value in updated.model_dump(exclude_unset=True).items():
             setattr(event, key, value)
+        sync_latest_mission_phase_from_event(db, event)
         db.commit()
         db.refresh(event)
         return event

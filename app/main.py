@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.database import Base, engine
+from app.config import AUTO_CREATE_TABLES
 from app import models
 
 # Importar todos os routers
@@ -13,7 +14,8 @@ from app.routes import (
     missionControl
 )
 
-Base.metadata.create_all(bind=engine)
+if AUTO_CREATE_TABLES:
+    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Endurance Mission Control",
@@ -24,7 +26,7 @@ app = FastAPI(
         "crew coordination, vehicle health, telemetry, navigation, docking, life support, "
         "alerts, and ground-control communication for a recruiter-friendly portfolio demo."
     ),
-    version="0.2.0",
+    version="0.3.0",
     contact={
         "name": "Maria Izabel Vieira Passos",
         "url": "https://github.com/belvpassos",
@@ -60,6 +62,8 @@ def read_root():
         "service": "Endurance Mission Control",
         "version": app.version,
         "docs": "/docs",
+        "schema_management": "alembic",
+        "auto_create_tables": AUTO_CREATE_TABLES,
         "status": "ready",
     }
 

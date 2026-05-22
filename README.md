@@ -68,6 +68,7 @@ Isso ajuda o projeto a sair de uma API abstrata e virar uma demonstração com c
 
 - `FastAPI`
 - `SQLAlchemy 2`
+- `Alembic`
 - `Pydantic 2`
 - `Uvicorn`
 - `python-dotenv`
@@ -175,16 +176,23 @@ erDiagram
   O endpoint `GET /mission-control/overview` existe para mostrar pensamento de sistema e observabilidade, não apenas CRUD isolado.
 - `Database portability`
   O projeto usa `DATABASE_URL`, com `SQLite` local como fallback, preparando terreno para migração futura para PostgreSQL.
+- `Schema evolution with Alembic`
+  O schema do banco agora pode ser recriado por migrations versionadas, o que deixa o projeto mais reproduzível e profissional para portfólio.
 
 ## Project Structure
 
 ```text
+alembic/
+├── env.py
+└── versions/
+
 app/
 ├── main.py
 ├── config.py
 ├── database.py
 ├── models/
 ├── routes/
+├── services/
 └── schemas/
 
 tests/
@@ -211,16 +219,55 @@ cd /Users/mariaizabelvieirapassos/Desktop/endurance_mission/endurance_mission
 pip install -r requirements.txt
 ```
 
-### 4. Start the API
+### 4. Create a local environment file
 
 ```bash
-DATABASE_URL=sqlite:///./test.db uvicorn app.main:app --reload
+cp .env.example .env
 ```
 
-### 5. Open the docs
+### 5. Create the database schema with Alembic
+
+```bash
+AUTO_CREATE_TABLES=false alembic upgrade head
+```
+
+### 6. Start the API
+
+```bash
+DATABASE_URL=sqlite:///./test.db AUTO_CREATE_TABLES=false uvicorn app.main:app --reload
+```
+
+### 7. Open the docs
 
 - [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+
+## Database Migrations
+
+O projeto usa `Alembic` para versionar a evolução do schema do banco.
+
+Comandos principais:
+
+```bash
+alembic upgrade head
+alembic revision --autogenerate -m "describe change"
+```
+
+Variáveis úteis:
+
+- `DATABASE_URL`
+  Define o banco-alvo da aplicação e das migrations.
+- `AUTO_CREATE_TABLES`
+  Quando `false`, a aplicação não usa `Base.metadata.create_all()` e espera que o schema já tenha sido criado via Alembic.
+
+Para fluxo de portfólio, o recomendado é usar:
+
+```bash
+DATABASE_URL=sqlite:///./test.db
+AUTO_CREATE_TABLES=false
+```
+
+O endpoint raiz `/` também expõe o modo atual de schema management, o que ajuda a inspecionar rapidamente se a aplicação está rodando com o fluxo esperado.
 
 ## Demo Flow For Recruiters
 
@@ -245,6 +292,8 @@ O projeto já possui um teste de fumaça para validar boot da aplicação e flux
 ```bash
 python -m unittest tests/test_mission_control_smoke.py
 ```
+
+Também existe cobertura para o fluxo com Alembic, garantindo que o schema pode nascer por migration sem depender de `create_all()`.
 
 ## Why This Is A Strong Portfolio Project
 

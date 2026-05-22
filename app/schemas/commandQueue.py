@@ -1,6 +1,15 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from enum import Enum
+
+
+class CommandStatus(str, Enum):
+    QUEUED = "queued"
+    EXECUTING = "executing"
+    CONFIRMED = "confirmed"
+    FAILED = "failed"
+    ABORTED = "aborted"
 
 class CommandQueueBase(BaseModel):
     command: str
@@ -9,7 +18,7 @@ class CommandQueueBase(BaseModel):
     executed: Optional[bool] = False
     executed_time: Optional[datetime] = None
     priority: Optional[int] = 1
-    status: Optional[str] = "scheduled"
+    status: CommandStatus = CommandStatus.QUEUED
     spacecraft_id: int
     
 class CommandQueueCreate(CommandQueueBase):
@@ -22,7 +31,7 @@ class CommandQueueUpdate(BaseModel):
     executed: Optional[bool] = None
     executed_time: Optional[datetime] = None
     priority: Optional[int] = None
-    status: Optional[str] = None
+    status: Optional[CommandStatus] = None
     spacecraft_id: Optional[int] = None
 
 class CommandQueue(CommandQueueBase):

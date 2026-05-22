@@ -18,8 +18,39 @@ class MissionControlSmokeTests(unittest.TestCase):
         env = os.environ.copy()
         env["DATABASE_URL"] = f"sqlite:///{db_path}"
         env["PYTHONPATH"] = str(PROJECT_ROOT)
+        env["AUTO_CREATE_TABLES"] = "true"
 
         try:
+            completed = subprocess.run(
+                [sys.executable, "-c", script],
+                cwd=PROJECT_ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return completed.stdout.strip()
+        finally:
+            Path(db_path).unlink(missing_ok=True)
+
+    def run_python_with_alembic(self, script: str) -> str:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as db_file:
+            db_path = db_file.name
+
+        env = os.environ.copy()
+        env["DATABASE_URL"] = f"sqlite:///{db_path}"
+        env["PYTHONPATH"] = str(PROJECT_ROOT)
+        env["AUTO_CREATE_TABLES"] = "false"
+
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "alembic", "upgrade", "head"],
+                cwd=PROJECT_ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             completed = subprocess.run(
                 [sys.executable, "-c", script],
                 cwd=PROJECT_ROOT,
@@ -46,6 +77,30 @@ class MissionControlSmokeTests(unittest.TestCase):
         )
         self.assertEqual(output.splitlines(), ["True", "True", "True"])
 
+    def test_alembic_upgrade_bootstraps_schema_without_create_all(self):
+        output = self.run_python_with_alembic(
+            textwrap.dedent(
+                """
+                import app.main
+                from app.database import SessionLocal
+                from app.routes.mission import create_mission
+                from app.schemas.mission import MissionCreate, MissionPhase
+
+                db = SessionLocal()
+                try:
+                    mission = create_mission(
+                        MissionCreate(name="Migration Check", status="planned", phase=MissionPhase.PRELAUNCH),
+                        db,
+                    )
+                    print(mission.name)
+                    print(mission.phase.value if hasattr(mission.phase, "value") else mission.phase)
+                finally:
+                    db.close()
+                """
+            )
+        )
+        self.assertEqual(output.splitlines(), ["Migration Check", "prelaunch"])
+
     def test_demo_bootstrap_populates_overview(self):
         output = self.run_python(
             textwrap.dedent(
@@ -59,10 +114,16 @@ class MissionControlSmokeTests(unittest.TestCase):
                     bootstrap_demo_data(db)
                     overview = get_mission_control_overview(db)
                     print(overview.operational_readiness)
+                    print(overview.latest_snapshot.mission_phase)
                     print(overview.metrics.missions)
                     print(overview.metrics.spacecraft)
                     print(overview.metrics.crew_members)
                     print(overview.latest_snapshot.spacecraft_name)
+                    print(overview.latest_snapshot.current_flight_stage)
+                    print(overview.latest_snapshot.current_target)
+                    print(overview.latest_snapshot.course_corrections_executed)
+                    print(overview.latest_snapshot.navigation_status)
+                    print(overview.latest_snapshot.readiness_reason)
                     print(len(overview.recent_events))
                     print(len(overview.active_alerts))
                 finally:
@@ -72,7 +133,21 @@ class MissionControlSmokeTests(unittest.TestCase):
         )
         self.assertEqual(
             output.splitlines(),
-            ["nominal", "1", "1", "4", "Endurance", "4", "2"],
+            [
+                "monitoring",
+                "surface_operations",
+                "1",
+                "1",
+                "4",
+                "Endurance",
+                "ship_landing",
+                "Landing Zone Alpha",
+                "2",
+                "operational",
+                "Open warning alerts remain under active review.",
+                "5",
+                "2",
+            ],
         )
 
     def test_demo_bootstrap_creates_richer_dataset(self):
@@ -101,7 +176,7 @@ class MissionControlSmokeTests(unittest.TestCase):
                 """
             )
         )
-        self.assertEqual(output.splitlines(), ["3", "4", "3", "3", "2"])
+        self.assertEqual(output.splitlines(), ["3", "15", "3", "4", "2"])
 
     def test_mission_crud_flow(self):
         output = self.run_python(
@@ -112,18 +187,28 @@ class MissionControlSmokeTests(unittest.TestCase):
                 from app.database import SessionLocal
                 from app.models.mission import Mission as MissionModel
                 from app.routes.mission import create_mission, update_mission, delete_mission
-                from app.schemas.mission import MissionCreate, MissionUpdate
+                from app.schemas.mission import MissionCreate, MissionPhase, MissionUpdate
 
                 db = SessionLocal()
                 try:
                     created = create_mission(
-                        MissionCreate(name="Ranger Survey", status="planned", start_time=datetime(2067, 5, 1, 9, 0)),
+                        MissionCreate(
+                            name="Ranger Survey",
+                            status="planned",
+                            phase=MissionPhase.PRELAUNCH,
+                            start_time=datetime(2067, 5, 1, 9, 0),
+                        ),
                         db,
                     )
-                    updated = update_mission(created.id, MissionUpdate(status="active"), db)
+                    updated = update_mission(
+                        created.id,
+                        MissionUpdate(status="active", phase=MissionPhase.TRANSFER),
+                        db,
+                    )
                     deleted = delete_mission(created.id, db)
                     print(created.name)
                     print(updated.status)
+                    print(updated.phase.value if hasattr(updated.phase, "value") else updated.phase)
                     print(deleted.detail)
                     print(db.query(MissionModel).count())
                 finally:
@@ -133,8 +218,145 @@ class MissionControlSmokeTests(unittest.TestCase):
         )
         self.assertEqual(
             output.splitlines(),
-            ["Ranger Survey", "active", "Mission deleted successfully", "0"],
+            ["Ranger Survey", "active", "transfer", "Mission deleted successfully", "0"],
         )
+
+    def test_navigation_thresholds_shift_readiness_to_monitoring(self):
+        output = self.run_python(
+            textwrap.dedent(
+                """
+                import app.main
+                from datetime import datetime
+                from app.database import SessionLocal
+                from app.models.mission import Mission, MissionPhase
+                from app.models.navigationSystem import NavigationSystem, NavigationStatus
+                from app.models.spacecraft import Spacecraft
+                from app.models.spacecraftStatus import SpacecraftStatus
+                from app.routes.missionControl import get_mission_control_overview
+
+                db = SessionLocal()
+                try:
+                    spacecraft = Spacecraft(
+                        name="Endurance",
+                        registry_code="END-MON-01",
+                        vehicle_class="Interstellar endurance vehicle",
+                        manufacturer="NASA / Lazarus Program",
+                        status="course-correction-window",
+                        mission_profile="Transfer monitoring",
+                        home_base="Deep space corridor",
+                    )
+                    mission = Mission(
+                        name="Transfer Corridor Check",
+                        status="active",
+                        phase=MissionPhase.TRANSFER,
+                        start_time=datetime(2067, 4, 12, 8, 15),
+                    )
+                    db.add_all([spacecraft, mission])
+                    db.flush()
+                    db.add(
+                        SpacecraftStatus(
+                            mission_id=mission.id,
+                            timestamp=datetime(2067, 4, 12, 11, 45),
+                            fuel_level=78.4,
+                            oxygen_level=92.1,
+                            temperature=21.5,
+                            pressure=101.1,
+                            is_operational=True,
+                            life_support_active=True,
+                            communication_active=True,
+                        )
+                    )
+                    db.add(
+                        NavigationSystem(
+                            trajectory="Transfer corridor to Edmunds",
+                            target_waypoint="Edmunds Injection Gate",
+                            course_correction=3,
+                            delta_v_mps=122.0,
+                            burn_duration_seconds=64.0,
+                            alignment_error_deg=0.42,
+                            residual_drift_km=7.6,
+                            maneuver_window_open=datetime(2067, 4, 12, 12, 34),
+                            maneuver_window_close=datetime(2067, 4, 12, 12, 44),
+                            last_correction_at=datetime(2067, 4, 12, 12, 39),
+                            navigation_system_status=NavigationStatus.OPERATIONAL,
+                            spacecraft_id=spacecraft.id,
+                        )
+                    )
+                    db.commit()
+                    overview = get_mission_control_overview(db)
+                    print(overview.operational_readiness)
+                    print(overview.latest_snapshot.mission_phase)
+                    print(overview.latest_snapshot.readiness_reason)
+                finally:
+                    db.close()
+                """
+            )
+        )
+        self.assertEqual(
+            output.splitlines(),
+            [
+                "monitoring",
+                "transfer",
+                "Navigation drift is elevated and remains under active monitoring.",
+            ],
+        )
+
+    def test_mission_event_updates_latest_mission_phase(self):
+        output = self.run_python(
+            textwrap.dedent(
+                """
+                import app.main
+                from datetime import datetime
+                from app.database import SessionLocal
+                from app.models.mission import Mission as MissionModel
+                from app.routes.mission import create_mission
+                from app.routes.missionEvents import create_mission_event
+                from app.routes.spacecraft import create_spacecraft
+                from app.schemas.mission import MissionCreate, MissionPhase
+                from app.schemas.missionEvents import EventType, MissionEventCreate
+                from app.schemas.spacecraft import SpacecraftCreate
+
+                db = SessionLocal()
+                try:
+                    create_mission(
+                        MissionCreate(
+                            name="Phase Sync Check",
+                            status="active",
+                            phase=MissionPhase.PRELAUNCH,
+                            start_time=datetime(2067, 5, 1, 9, 0),
+                        ),
+                        db,
+                    )
+                    spacecraft = create_spacecraft(
+                        SpacecraftCreate(
+                            name="Phase-Sync-1",
+                            registry_code="PHASE-01",
+                            vehicle_class="Ascent vehicle",
+                            manufacturer="NASA",
+                            status="stacked",
+                            mission_profile="Phase propagation validation",
+                            home_base="Launch Complex",
+                        ),
+                        db,
+                    )
+                    event = create_mission_event(
+                        MissionEventCreate(
+                            event_type=EventType.LIFTOFF,
+                            timestamp=datetime(2067, 5, 1, 9, 31),
+                            description="Vehicle cleared the tower.",
+                            spacecraft_id=spacecraft.id,
+                        ),
+                        db,
+                    )
+                    latest_mission = db.query(MissionModel).order_by(MissionModel.start_time.desc()).first()
+                    print(event.event_type.value if hasattr(event.event_type, "value") else event.event_type)
+                    print(latest_mission.phase.value if hasattr(latest_mission.phase, "value") else latest_mission.phase)
+                finally:
+                    db.close()
+                """
+            )
+        )
+        self.assertEqual(output.splitlines(), ["liftoff", "ascent"])
 
     def test_spacecraft_crud_flow(self):
         output = self.run_python(
@@ -367,20 +589,35 @@ class MissionControlSmokeTests(unittest.TestCase):
                     created = create_navigation(
                         NavigationSystemCreate(
                             trajectory="Transfer arc to Miller",
+                            target_waypoint="Miller Approach Corridor",
                             course_correction=1,
+                            delta_v_mps=42.5,
+                            burn_duration_seconds=18.0,
+                            alignment_error_deg=0.25,
+                            residual_drift_km=12.4,
                             navigation_system_status=NavigationStatus.OPERATIONAL,
                             spacecraft_id=spacecraft.id,
                         ),
                         db,
                     )
+                    original_target_waypoint = created.target_waypoint
                     updated = update_navigation(
                         created.id,
-                        NavigationSystemUpdate(course_correction=2),
+                        NavigationSystemUpdate(
+                            course_correction=2,
+                            target_waypoint="Miller Descent Interface",
+                            delta_v_mps=84.2,
+                            residual_drift_km=3.1,
+                        ),
                         db,
                     )
                     deleted = delete_navigation(created.id, db)
                     print(created.trajectory)
+                    print(original_target_waypoint)
                     print(updated.course_correction)
+                    print(updated.target_waypoint)
+                    print(updated.delta_v_mps)
+                    print(updated.residual_drift_km)
                     print(deleted.detail)
                     print(db.query(NavigationModel).count())
                 finally:
@@ -390,8 +627,143 @@ class MissionControlSmokeTests(unittest.TestCase):
         )
         self.assertEqual(
             output.splitlines(),
-            ["Transfer arc to Miller", "2", "Navigation entry deleted successfully", "0"],
+            [
+                "Transfer arc to Miller",
+                "Miller Approach Corridor",
+                "2",
+                "Miller Descent Interface",
+                "84.2",
+                "3.1",
+                "Navigation entry deleted successfully",
+                "0",
+            ],
         )
+
+    def test_navigation_side_effects_generate_events_and_alerts(self):
+        output = self.run_python(
+            textwrap.dedent(
+                """
+                import app.main
+                from app.database import SessionLocal
+                from app.models.alertSystem import AlertSystem
+                from app.models.missionEvents import MissionEvent
+                from app.routes.navigationSystem import create_navigation, update_navigation
+                from app.routes.spacecraft import create_spacecraft
+                from app.schemas.navigationSystem import NavigationStatus, NavigationSystemCreate, NavigationSystemUpdate
+                from app.schemas.spacecraft import SpacecraftCreate
+
+                db = SessionLocal()
+                try:
+                    spacecraft = create_spacecraft(
+                        SpacecraftCreate(
+                            name="Ranger-SideEffects",
+                            registry_code="NAV-SFX-01",
+                            vehicle_class="Lander",
+                            manufacturer="NASA",
+                            status="operational",
+                            mission_profile="Navigation automation test",
+                            home_base="Transfer corridor",
+                        ),
+                        db,
+                    )
+                    created = create_navigation(
+                        NavigationSystemCreate(
+                            trajectory="Transfer arc to Edmunds",
+                            target_waypoint="Edmunds Injection Gate",
+                            course_correction=2,
+                            delta_v_mps=118.4,
+                            burn_duration_seconds=42.0,
+                            alignment_error_deg=0.61,
+                            residual_drift_km=8.4,
+                            navigation_system_status=NavigationStatus.OPERATIONAL,
+                            spacecraft_id=spacecraft.id,
+                        ),
+                        db,
+                    )
+                    open_alert = db.query(AlertSystem).filter(AlertSystem.resolved.is_(False)).one()
+                    update_navigation(
+                        created.id,
+                        NavigationSystemUpdate(
+                            alignment_error_deg=0.08,
+                            residual_drift_km=1.2,
+                        ),
+                        db,
+                    )
+                    resolved_alert = db.query(AlertSystem).one()
+                    latest_event = db.query(MissionEvent).order_by(MissionEvent.id.desc()).first()
+                    print(db.query(MissionEvent).count())
+                    print(latest_event.event_type.value if hasattr(latest_event.event_type, "value") else latest_event.event_type)
+                    print(open_alert.alert_type.value if hasattr(open_alert.alert_type, "value") else open_alert.alert_type)
+                    print(resolved_alert.resolved)
+                finally:
+                    db.close()
+                """
+            )
+        )
+        self.assertEqual(output.splitlines(), ["2", "course_correction_burn", "warning", "True"])
+
+    def test_command_queue_lifecycle_generates_timeline_events(self):
+        output = self.run_python(
+            textwrap.dedent(
+                """
+                import app.main
+                from app.database import SessionLocal
+                from app.models.missionEvents import MissionEvent
+                from app.routes.commandQueue import create_command, update_command
+                from app.routes.spacecraft import create_spacecraft
+                from app.schemas.commandQueue import CommandQueueCreate, CommandQueueUpdate, CommandStatus
+                from app.schemas.spacecraft import SpacecraftCreate
+
+                db = SessionLocal()
+                try:
+                    spacecraft = create_spacecraft(
+                        SpacecraftCreate(
+                            name="CASE-Command",
+                            registry_code="CMD-01",
+                            vehicle_class="Autonomous support unit",
+                            manufacturer="NASA",
+                            status="operational",
+                            mission_profile="Command lifecycle test",
+                            home_base="Endurance",
+                        ),
+                        db,
+                    )
+                    created = create_command(
+                        CommandQueueCreate(
+                            command="trim_attitude",
+                            parameters="yaw=0.12,pitch=-0.03",
+                            priority=2,
+                            status=CommandStatus.QUEUED,
+                            spacecraft_id=spacecraft.id,
+                        ),
+                        db,
+                    )
+                    original_status = created.status.value if hasattr(created.status, "value") else created.status
+                    executing = update_command(
+                        created.id,
+                        CommandQueueUpdate(status=CommandStatus.EXECUTING),
+                        db,
+                    )
+                    executing_flag = executing.executed
+                    confirmed = update_command(
+                        created.id,
+                        CommandQueueUpdate(status=CommandStatus.CONFIRMED),
+                        db,
+                    )
+                    latest_event = db.query(MissionEvent).order_by(MissionEvent.id.desc()).first()
+                    print(original_status)
+                    print(executing_flag)
+                    print(confirmed.status.value if hasattr(confirmed.status, "value") else confirmed.status)
+                    print(confirmed.executed)
+                    print(confirmed.executed_time is not None)
+                    print(db.query(MissionEvent).count())
+                    print(latest_event.event_type.value if hasattr(latest_event.event_type, "value") else latest_event.event_type)
+                finally:
+                    db.close()
+                """
+            )
+        )
+        self.assertEqual(output.splitlines(), ["queued", "False", "confirmed", "True", "True", "3", "command_confirmed"])
 
     def test_resource_usage_log_crud_flow(self):
         output = self.run_python(
