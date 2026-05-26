@@ -1,115 +1,119 @@
 # Endurance Mission Control
 
-Backend de mission control para uma nave de exploração interestelar inspirado na linguagem operacional de *Interstellar*.
+FastAPI backend for a deep-space mission control simulation focused on spacecraft operations, telemetry, subsystem monitoring, alerts, navigation, crew coordination, and ground-control communication.
 
-O objetivo deste projeto é simular um sistema de controle de missão com foco em subsistemas críticos, telemetria, navegação, alertas, comunicação com ground control e visão consolidada do estado da missão. Ele foi pensado como peça de portfólio para demonstrar modelagem de domínio, organização de backend e capacidade de construir software com linguagem próxima de operações aeroespaciais.
+This project is part of my software engineering portfolio and is designed to show backend domain modeling, API organization, database migrations, and aerospace-inspired system thinking.
 
 ## What This Project Demonstrates
 
-- modelagem de sistemas críticos com `FastAPI`, `SQLAlchemy` e `Pydantic`
-- organização modular por domínio: `models`, `schemas` e `routes`
-- backend orientado a operações de missão, não apenas CRUD genérico
-- narrativa técnica inspirada em exploração deep-space
-- base pronta para evoluir para dashboard, documentação visual e deploy
+- Domain-first backend architecture with `FastAPI`, `SQLAlchemy`, and `Pydantic`
+- Modular API structure across `models`, `schemas`, `routes`, and `services`
+- Mission-control concepts beyond generic CRUD endpoints
+- Demo data that creates a coherent operational scenario
+- Database schema management with `Alembic`
+- Smoke tests for application boot, migrations, mission overview, and demo data
 
 ## Mission Scenario
 
-O projeto apresenta a nave `Endurance` em uma missão de exploração e coordenação deep-space. A demo atual usa um cenário com:
+The current demo models the spacecraft `Endurance` during a deep-space mission scenario inspired by the operational language of mission control systems.
 
-- nave `Endurance`
-- missão `Lazarus Relay Expedition`
-- corpos de referência como `Miller`, `Mann` e `Edmunds`
-- eventos orbitais próximos de `Gargantua`
-- alertas operacionais, status da nave e logs de ground control
+The demo includes:
 
-Isso ajuda o projeto a sair de uma API abstrata e virar uma demonstração com contexto, história operacional e identidade própria.
+- Spacecraft and mission records
+- Crew roles
+- Celestial body references
+- Mission events
+- Operational alerts
+- Spacecraft status snapshots
+- Ground-control logs
+- Aggregated mission-control overview
 
 ## Current Capabilities
 
-### Core domains
+### Core Domains
 
-- `Spacecraft`: catálogo de veículos, perfil de missão e status operacional
-- `Mission`: ciclo de missão e contexto principal
-- `Crew`: tripulação e papéis
-- `Planet`: destinos e corpos celestes monitorados
-- `Spacecraft Status`: snapshot de combustível, oxigênio, temperatura e pressão
-- `Mission Events`: eventos de missão como engine burns e orbital insertion
-- `Alert System`: alertas por criticidade e subsistema
-- `Ground Control Log`: mensagens entre controle de missão e nave
+- `Spacecraft`: vehicle records, registry codes, vehicle class, and operational status
+- `Mission`: mission lifecycle, current phase, and mission metadata
+- `Crew`: crew manifest and mission roles
+- `Planet`: destination and celestial body reference data
+- `Spacecraft Status`: fuel, oxygen, temperature, pressure, and flight-stage snapshots
+- `Mission Events`: mission timeline entries such as burns, insertion events, and surface operations
+- `Alert System`: active and resolved alerts by subsystem and severity
+- `Ground Control Log`: communication records between mission control and spacecraft
 
-### Subsystems and support modules
+### Subsystems
 
-- fuel
-- power
-- thermal control
-- communication
-- navigation
-- telemetry
-- abort and recovery
-- docking
-- payload
-- environment monitor
-- resource management
-- software update log
-- subsystem diagnostics
+- Fuel
+- Power
+- Thermal control
+- Communication
+- Navigation
+- Telemetry
+- Abort and recovery
+- Docking
+- Payload
+- Environment monitoring
+- Resource management
+- Software update logs
+- Subsystem diagnostics
 
-### Portfolio-focused endpoints
+### Portfolio-Focused Endpoints
 
-- `GET /`
-  Retorna metadados básicos da API
-- `GET /health`
-  Confirma que a aplicação está operacional
-- `POST /demo/bootstrap`
-  Cria um dataset demo coerente para apresentação
-- `GET /mission-control/overview`
-  Retorna uma visão executiva da missão com métricas, snapshot e alertas ativos
+```text
+GET  /
+GET  /health
+POST /demo/bootstrap
+GET  /mission-control/overview
+```
+
+The `POST /demo/bootstrap` endpoint creates a coherent demo dataset, and `GET /mission-control/overview` returns an executive-style mission snapshot with metrics, current status, recent events, and active alerts.
 
 ## Tech Stack
 
-- `FastAPI`
-- `SQLAlchemy 2`
-- `Alembic`
-- `Pydantic 2`
-- `Uvicorn`
-- `python-dotenv`
-- `SQLite` como fallback local
-- compatível com `DATABASE_URL` para futura migração de banco
+- Python
+- FastAPI
+- SQLAlchemy 2
+- Pydantic 2
+- Alembic
+- Uvicorn
+- python-dotenv
+- SQLite for local development
+- `DATABASE_URL` support for future PostgreSQL deployment
 
 ## Architecture Overview
 
 ```mermaid
 flowchart TD
-    A["Client / Swagger Demo"] --> B["FastAPI Application"]
+    A["Client / Swagger UI"] --> B["FastAPI Application"]
     B --> C["Routes Layer"]
     C --> D["Schemas Layer (Pydantic)"]
     C --> E["Models Layer (SQLAlchemy)"]
-    E --> F["Database via DATABASE_URL"]
+    C --> F["Services Layer"]
+    E --> G["Database via DATABASE_URL"]
 
-    C --> G["Mission Control Overview"]
-    C --> H["Spacecraft"]
-    C --> I["Mission"]
-    C --> J["Crew"]
-    C --> K["Planet"]
-    C --> L["Alerts / Events / Logs"]
-
-    G --> E
-    H --> E
-    I --> E
-    J --> E
-    K --> E
-    L --> E
+    F --> H["Mission Control Overview"]
+    C --> I["Spacecraft"]
+    C --> J["Missions"]
+    C --> K["Crew"]
+    C --> L["Planets"]
+    C --> M["Alerts / Events / Logs"]
 ```
 
-## Domain Model
+## Domain Model Snapshot
 
 ```mermaid
 erDiagram
     MISSION ||--o{ CREW : contains
     MISSION ||--o{ SPACECRAFT_STATUS : records
+    SPACECRAFT ||--o{ ALERT_SYSTEM : emits
+    SPACECRAFT ||--o{ MISSION_EVENTS : generates
+    SPACECRAFT ||--o{ GROUND_CONTROL_LOG : receives
+
     MISSION {
         int id
         string name
         string status
+        string phase
         datetime start_time
     }
     CREW {
@@ -153,47 +157,23 @@ erDiagram
         string message_type
         int spacecraft_id
     }
-    PLANETS {
-        int id
-        string name
-        string type
-        float habitability_score
-    }
-    SPACECRAFT ||--o{ ALERT_SYSTEM : emits
-    SPACECRAFT ||--o{ MISSION_EVENTS : generates
-    SPACECRAFT ||--o{ GROUND_CONTROL_LOG : receives
 ```
-
-## Design Decisions
-
-- `Domain-first structure`
-  Cada módulo segue a separação `models` + `schemas` + `routes`, o que ajuda a manter clareza entre persistência, contrato da API e comportamento HTTP.
-- `Operational narrative over generic CRUD`
-  O projeto foi desenhado para parecer um sistema de missão real, então os módulos e dados demo seguem linguagem operacional e contexto de missão.
-- `Portfolio-ready demo endpoint`
-  O endpoint `POST /demo/bootstrap` reduz atrito para demonstração e permite mostrar valor rapidamente em entrevista.
-- `Mission overview aggregation`
-  O endpoint `GET /mission-control/overview` existe para mostrar pensamento de sistema e observabilidade, não apenas CRUD isolado.
-- `Database portability`
-  O projeto usa `DATABASE_URL`, com `SQLite` local como fallback, preparando terreno para migração futura para PostgreSQL.
-- `Schema evolution with Alembic`
-  O schema do banco agora pode ser recriado por migrations versionadas, o que deixa o projeto mais reproduzível e profissional para portfólio.
 
 ## Project Structure
 
 ```text
-alembic/
-├── env.py
-└── versions/
-
 app/
 ├── main.py
 ├── config.py
 ├── database.py
 ├── models/
 ├── routes/
-├── services/
-└── schemas/
+├── schemas/
+└── services/
+
+alembic/
+├── env.py
+└── versions/
 
 tests/
 └── test_mission_control_smoke.py
@@ -201,125 +181,119 @@ tests/
 
 ## Running Locally
 
-### 1. Activate the virtual environment
+### 1. Clone the repository
 
 ```bash
-source /Users/mariaizabelvieirapassos/Desktop/endurance_mission/venv/bin/activate
+git clone https://github.com/belvpassos/endurance_mission.git
+cd endurance_mission
 ```
 
-### 2. Go to the project folder
+### 2. Create and activate a virtual environment
 
 ```bash
-cd /Users/mariaizabelvieirapassos/Desktop/endurance_mission/endurance_mission
+python -m venv .venv
+source .venv/bin/activate
 ```
 
-### 3. Install dependencies if needed
+On Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Create a local environment file
+### 4. Configure local environment variables
 
-```bash
-cp .env.example .env
+Create a `.env` file in the project root:
+
+```env
+DATABASE_URL=sqlite:///./test.db
+AUTO_CREATE_TABLES=false
 ```
 
-### 5. Create the database schema with Alembic
+### 5. Run database migrations
 
 ```bash
-AUTO_CREATE_TABLES=false alembic upgrade head
+alembic upgrade head
 ```
 
 ### 6. Start the API
 
 ```bash
-DATABASE_URL=sqlite:///./test.db AUTO_CREATE_TABLES=false uvicorn app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
-### 7. Open the docs
+Open the API docs:
 
-- [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+- http://127.0.0.1:8000/docs
+- http://127.0.0.1:8000/redoc
 
-## Database Migrations
+## Demo Flow
 
-O projeto usa `Alembic` para versionar a evolução do schema do banco.
+For a quick walkthrough:
 
-Comandos principais:
+1. Open `/docs`
+2. Run `POST /demo/bootstrap`
+3. Run `GET /mission-control/overview`
+4. Explore spacecraft, missions, alerts, mission events, and ground-control logs
 
-```bash
-alembic upgrade head
-alembic revision --autogenerate -m "describe change"
-```
-
-Variáveis úteis:
-
-- `DATABASE_URL`
-  Define o banco-alvo da aplicação e das migrations.
-- `AUTO_CREATE_TABLES`
-  Quando `false`, a aplicação não usa `Base.metadata.create_all()` e espera que o schema já tenha sido criado via Alembic.
-
-Para fluxo de portfólio, o recomendado é usar:
-
-```bash
-DATABASE_URL=sqlite:///./test.db
-AUTO_CREATE_TABLES=false
-```
-
-O endpoint raiz `/` também expõe o modo atual de schema management, o que ajuda a inspecionar rapidamente se a aplicação está rodando com o fluxo esperado.
-
-## Demo Flow For Recruiters
-
-Se você quiser apresentar este projeto em 2-3 minutos, o fluxo recomendado é:
-
-1. abrir `/docs`
-2. executar `POST /demo/bootstrap`
-3. abrir `GET /mission-control/overview`
-4. mostrar os módulos de `spacecraft`, `missions`, `alerts`, `mission-events` e `ground-control-log`
-5. explicar como a API foi organizada para representar operações de missão e monitoramento de subsistemas
-
-## Suggested Interview Pitch
-
-Se você precisar explicar rapidamente o projeto em uma entrevista, uma boa versão curta seria:
-
-> "Endurance Mission Control is a FastAPI backend that simulates a deep-space mission control environment inspired by Interstellar. I built it to model spacecraft operations, crew, telemetry, alerts, mission events and ground-control communication in a way that feels closer to an operational aerospace system than a generic CRUD app. I also added a mission overview layer and a demo bootstrap flow so the project is easy to explore and present."
-
-## Smoke Tests
-
-O projeto já possui um teste de fumaça para validar boot da aplicação e fluxo básico da demo:
+## Running Tests
 
 ```bash
 python -m unittest tests/test_mission_control_smoke.py
 ```
 
-Também existe cobertura para o fluxo com Alembic, garantindo que o schema pode nascer por migration sem depender de `create_all()`.
+The smoke tests validate:
 
-## Why This Is A Strong Portfolio Project
+- Application boot and core routes
+- Alembic migration flow
+- Demo dataset bootstrap
+- Mission-control overview aggregation
+- Basic mission CRUD behavior
 
-Este projeto comunica competências importantes para vagas técnicas:
+## Design Decisions
 
-- design de backend modular
-- modelagem de domínio com entidades relacionadas
-- atenção a observabilidade e estado operacional
-- capacidade de traduzir um conceito complexo em um sistema navegável
-- preocupação com demonstração, documentação e apresentação técnica
+### Domain-first structure
 
-Ele também mostra algo importante para o setor aeroespacial: não apenas código, mas pensamento de sistema.
+Each major domain is organized across `models`, `schemas`, and `routes` to keep persistence, API contracts, and HTTP behavior clear.
 
-## Next Planned Improvements
+### Operational narrative over generic CRUD
 
-- padronização de respostas e tratamento de erro nas rotas mais antigas
-- ampliação dos testes para fluxos de CRUD e overview
-- dashboard visual para mission control
-- preparação para deploy
-- documentação técnica em inglês voltada a recrutadores
+The project is intentionally structured around mission operations, subsystem state, alerts, and telemetry concepts instead of only generic database records.
+
+### Recruiter-friendly demo flow
+
+The demo bootstrap and mission overview endpoints make the project easy to explore during interviews or portfolio reviews.
+
+### Migration-based schema management
+
+Alembic is used so the database schema can be recreated in a reproducible way without relying only on `create_all()`.
+
+## Interview Pitch
+
+Endurance Mission Control is a FastAPI backend that simulates a deep-space mission control environment. I built it to model spacecraft operations, crew, telemetry, alerts, mission events, and ground-control communication in a way that feels closer to an operational aerospace system than a generic CRUD app. The project includes a demo bootstrap flow, Alembic migrations, and smoke tests so it can be explored and presented quickly.
+
+## Roadmap
+
+- Add more route-level tests
+- Standardize error handling across older routes
+- Add richer telemetry simulation
+- Prepare a React and TypeScript mission dashboard
+- Add Docker support
+- Prepare deployment
+- Add screenshots or a short walkthrough video
+
+## Disclaimer
+
+This is an independent educational portfolio project. It is not affiliated with NASA, ESA, SpaceX, Docking Robotics, or any employer. It does not include proprietary code, designs, architecture, or confidential information.
 
 ## Author
 
 Maria Izabel Vieira Passos  
-GitHub: [@belvpassos](https://github.com/belvpassos)
-
-## License
-
-© 2025 Maria Izabel Vieira Passos. All rights reserved.
+GitHub: [@belvpassos](https://github.com/belvpassos)  
+LinkedIn: [maria-izabel09](https://www.linkedin.com/in/maria-izabel09)
