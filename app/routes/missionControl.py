@@ -17,13 +17,70 @@ from app.services.missionState import derive_mission_phase
 from app.schemas.missionControl import (
     DemoBootstrapResponse,
     MissionAlertEntry,
+    MissionCelestialContext,
     MissionControlOverview,
+    MissionCrewEntry,
+    MissionCrewSummary,
     MissionOverviewMetrics,
     MissionOverviewSnapshot,
+    MissionPlanetSummary,
+    MissionSpacecraftSummary,
     MissionTimelineEntry,
 )
 
 router = APIRouter()
+
+
+PLANET_CONTEXT = {
+    "miller": {
+        "gravity_source": "Gargantua",
+        "orbital_sector": "Accretion Corridor A",
+        "time_dilation_ratio": "01 hr : 07 yrs",
+    },
+    "edmunds": {
+        "gravity_source": "Gargantua",
+        "orbital_sector": "Habitable Survey Corridor",
+        "time_dilation_ratio": "Moderate relativistic offset",
+    },
+    "mann": {
+        "gravity_source": "Gargantua",
+        "orbital_sector": "Cryosphere Recon Corridor",
+        "time_dilation_ratio": "Moderate relativistic offset",
+    },
+}
+
+
+def derive_active_planet(
+    latest_navigation: NavigationSystem | None,
+    planets: list[Planet],
+) -> Planet | None:
+    target_hint = (latest_navigation.target_waypoint or "").lower() if latest_navigation else ""
+    for planet in planets:
+        planet_name = (planet.name or "").lower()
+        if planet_name and planet_name in target_hint:
+            return planet
+
+    if "landing zone alpha" in target_hint:
+        for planet in planets:
+            if (planet.name or "").lower() == "miller":
+                return planet
+
+    return planets[0] if planets else None
+
+
+def build_celestial_context(
+    active_planet: Planet | None,
+    latest_navigation: NavigationSystem | None,
+) -> MissionCelestialContext:
+    planet_key = (active_planet.name or "").lower() if active_planet else ""
+    defaults = PLANET_CONTEXT.get(planet_key, {})
+    return MissionCelestialContext(
+        gravity_source=defaults.get("gravity_source", "Deep Space Transit"),
+        orbital_sector=defaults.get("orbital_sector", "Transfer Corridor"),
+        time_dilation_ratio=defaults.get("time_dilation_ratio", "Nominal"),
+        target_body=active_planet.name if active_planet else None,
+        target_waypoint=latest_navigation.target_waypoint if latest_navigation else None,
+    )
 
 
 def evaluate_readiness(
@@ -84,6 +141,15 @@ def get_mission_control_overview(db: Session = Depends(get_db)):
     recent_events = db.query(MissionEvent).order_by(MissionEvent.timestamp.desc()).limit(5).all()
     latest_event = db.query(MissionEvent).order_by(MissionEvent.timestamp.desc()).first()
     latest_navigation = db.query(NavigationSystem).order_by(NavigationSystem.last_correction_at.desc()).first()
+    planets = (
+        db.query(Planet)
+        .order_by(Planet.habitability_score.is_(None), Planet.habitability_score.desc(), Planet.name.asc())
+        .all()
+    )
+    crew_query = db.query(Crew)
+    if latest_mission:
+        crew_query = crew_query.filter(Crew.mission_id == latest_mission.id)
+    crew_manifest = crew_query.order_by(Crew.id.asc()).all()
     course_correction_count = (
         db.query(MissionEvent)
         .filter(MissionEvent.event_type == EventType.COURSE_CORRECTION_BURN)
@@ -91,6 +157,10 @@ def get_mission_control_overview(db: Session = Depends(get_db)):
     )
     mission_phase = derive_mission_phase(latest_event, latest_mission)
     readiness, readiness_reason = evaluate_readiness(latest_status, active_alert_models, latest_navigation)
+    active_planet = derive_active_planet(latest_navigation, planets)
+    celestial_context = build_celestial_context(active_planet, latest_navigation)
+    commander = next((member.name for member in crew_manifest if "commander" in member.role.lower()), None)
+    lead_scientist = next((member.name for member in crew_manifest if "scientist" in member.role.lower()), None)
 
     snapshot = MissionOverviewSnapshot(
         mission_name=latest_mission.name if latest_mission else None,
@@ -127,6 +197,39 @@ def get_mission_control_overview(db: Session = Depends(get_db)):
             critical_alerts=critical_alert_count,
         ),
         latest_snapshot=snapshot,
+        celestial_context=celestial_context,
+        active_planet=(
+            MissionPlanetSummary(
+                name=active_planet.name,
+                type=active_planet.type,
+                gravity=active_planet.gravity,
+                atmosphere=active_planet.atmosphere,
+                surface_temperature=active_planet.surface_temperature,
+                habitability_score=active_planet.habitability_score,
+                description=active_planet.description,
+            )
+            if active_planet
+            else None
+        ),
+        crew_summary=MissionCrewSummary(
+            total_active=len(crew_manifest),
+            commander=commander,
+            lead_scientist=lead_scientist,
+            crew_manifest=[
+                MissionCrewEntry(name=member.name, role=member.role)
+                for member in crew_manifest
+            ],
+            support_units=["TARS", "CASE"],
+        ),
+        spacecraft_summary=MissionSpacecraftSummary(
+            name=latest_spacecraft.name if latest_spacecraft else None,
+            registry_code=latest_spacecraft.registry_code if latest_spacecraft else None,
+            vehicle_class=latest_spacecraft.vehicle_class if latest_spacecraft else None,
+            manufacturer=latest_spacecraft.manufacturer if latest_spacecraft else None,
+            mission_profile=latest_spacecraft.mission_profile if latest_spacecraft else None,
+            home_base=latest_spacecraft.home_base if latest_spacecraft else None,
+            status=latest_spacecraft.status if latest_spacecraft else None,
+        ),
         recent_events=[
             MissionTimelineEntry(
                 timestamp=event.timestamp,

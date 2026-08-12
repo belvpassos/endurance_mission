@@ -32,6 +32,47 @@ class MissionOverviewSnapshot(BaseModel):
     cabin_pressure: Optional[float] = None
 
 
+class MissionPlanetSummary(BaseModel):
+    name: str
+    type: Optional[str] = None
+    gravity: Optional[float] = None
+    atmosphere: Optional[str] = None
+    surface_temperature: Optional[float] = None
+    habitability_score: Optional[float] = None
+    description: Optional[str] = None
+
+
+class MissionCelestialContext(BaseModel):
+    gravity_source: Optional[str] = None
+    orbital_sector: Optional[str] = None
+    time_dilation_ratio: Optional[str] = None
+    target_body: Optional[str] = None
+    target_waypoint: Optional[str] = None
+
+
+class MissionCrewEntry(BaseModel):
+    name: str
+    role: str
+
+
+class MissionCrewSummary(BaseModel):
+    total_active: int
+    commander: Optional[str] = None
+    lead_scientist: Optional[str] = None
+    crew_manifest: list[MissionCrewEntry]
+    support_units: list[str]
+
+
+class MissionSpacecraftSummary(BaseModel):
+    name: Optional[str] = None
+    registry_code: Optional[str] = None
+    vehicle_class: Optional[str] = None
+    manufacturer: Optional[str] = None
+    mission_profile: Optional[str] = None
+    home_base: Optional[str] = None
+    status: Optional[str] = None
+
+
 class MissionTimelineEntry(BaseModel):
     timestamp: datetime
     event_type: str
@@ -51,6 +92,10 @@ class MissionControlOverview(BaseModel):
     operational_readiness: str
     metrics: MissionOverviewMetrics
     latest_snapshot: MissionOverviewSnapshot
+    celestial_context: MissionCelestialContext
+    active_planet: Optional[MissionPlanetSummary] = None
+    crew_summary: MissionCrewSummary
+    spacecraft_summary: MissionSpacecraftSummary
     recent_events: list[MissionTimelineEntry]
     active_alerts: list[MissionAlertEntry]
 
