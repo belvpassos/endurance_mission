@@ -79,6 +79,9 @@ The `POST /demo/bootstrap` endpoint creates a coherent demo dataset, and `GET /m
 - python-dotenv
 - SQLite for local development
 - `DATABASE_URL` support for future PostgreSQL deployment
+- React
+- TypeScript
+- Vite
 
 ## Architecture Overview
 
@@ -177,6 +180,12 @@ alembic/
 
 tests/
 └── test_mission_control_smoke.py
+
+frontend/
+├── src/
+├── public/
+├── package.json
+└── vite.config.ts
 ```
 
 ## Running Locally
@@ -205,6 +214,14 @@ On Windows:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Install the frontend dependencies in a separate terminal:
+
+```bash
+cd frontend
+npm install
+cd ..
 ```
 
 ### 4. Configure local environment variables

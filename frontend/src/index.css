@@ -1,0 +1,103 @@
+:root {
+  --bg: #071018;
+  --bg-secondary: #091722;
+  --panel-bg: rgba(7, 18, 30, 0.88);
+  --border: rgba(132, 163, 185, 0.18);
+  --text: #e6e1d4;
+  --muted: #9bacba;
+  --heading-color: #fff8ec;
+  --accent: #71e0ff;
+  --accent-soft: #8dcde4;
+  --panel-shadow: 0 20px 40px rgba(3, 8, 14, 0.3);
+  --sans: 'SF Pro Text', 'Segoe UI Variable Text', 'Helvetica Neue', sans-serif;
+  --heading: 'SF Pro Display', 'Segoe UI Variable Display', 'Helvetica Neue', sans-serif;
+  --mono: 'IBM Plex Mono', 'SFMono-Regular', 'Menlo', monospace;
+
+  font: 16px/1.5 var(--sans);
+  letter-spacing: 0.008em;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at top, rgba(113, 224, 255, 0.12), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(253, 182, 76, 0.08), transparent 28%),
+    linear-gradient(180deg, var(--bg), var(--bg-secondary));
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+html,
+body,
+#root {
+  min-height: 100svh;
+  height: auto;
+  overflow: visible;
+}
+
+h1,
+h2 {
+  font-family: var(--heading);
+  font-weight: 500;
+  color: var(--heading-color);
+  letter-spacing: 0.025em;
+}
+
+h1 {
+  margin: 0 0 14px;
+  font-size: clamp(1.2rem, 2.4vw, 1.8rem);
+  line-height: 1;
+}
+
+h2 {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+}
+
+h3,
+p,
+span,
+strong,
+button {
+  margin: 0;
+}
+
+p {
+  color: var(--muted);
+}
+
+strong,
+code,
+.eyebrow {
+  font-family: var(--mono);
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+code {
+  font-family: var(--mono);
+}
